@@ -8,13 +8,12 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from diffusers.utils import is_accelerate_available
+from diffusers.utils import is_accelerate_available, deprecate, logging, BaseOutput
 from packaging import version
 from transformers import CLIPTextModel, CLIPTokenizer
 
-from diffusers.configuration_utils import FrozenDict
+from diffusers import DiffusionPipeline
 from diffusers.models import AutoencoderKL
-from diffusers.pipeline_utils import DiffusionPipeline
 from diffusers.schedulers import (
     DDIMScheduler,
     DPMSolverMultistepScheduler,
@@ -23,7 +22,6 @@ from diffusers.schedulers import (
     LMSDiscreteScheduler,
     PNDMScheduler,
 )
-from diffusers.utils import deprecate, logging, BaseOutput
 
 from einops import rearrange
 
@@ -59,72 +57,6 @@ class FlowGenPipeline(DiffusionPipeline):
     ):
         super().__init__()
 
-        if (
-            hasattr(scheduler.config, "steps_offset")
-            and scheduler.config.steps_offset != 1
-        ):
-            deprecation_message = (
-                f"The configuration file of this scheduler: {scheduler} is outdated. `steps_offset`"
-                f" should be set to 1 instead of {scheduler.config.steps_offset}. Please make sure "
-                "to update the config accordingly as leaving `steps_offset` might led to incorrect results"
-                " in future versions. If you have downloaded this checkpoint from the Hugging Face Hub,"
-                " it would be very nice if you could open a Pull request for the `scheduler/scheduler_config.json`"
-                " file"
-            )
-            deprecate(
-                "steps_offset!=1", "1.0.0", deprecation_message, standard_warn=False
-            )
-            new_config = dict(scheduler.config)
-            new_config["steps_offset"] = 1
-            scheduler._internal_dict = FrozenDict(new_config)
-
-        if (
-            hasattr(scheduler.config, "clip_sample")
-            and scheduler.config.clip_sample is True
-        ):
-            deprecation_message = (
-                f"The configuration file of this scheduler: {scheduler} has not set the configuration `clip_sample`."
-                " `clip_sample` should be set to False in the configuration file. Please make sure to update the"
-                " config accordingly as not setting `clip_sample` in the config might lead to incorrect results in"
-                " future versions. If you have downloaded this checkpoint from the Hugging Face Hub, it would be very"
-                " nice if you could open a Pull request for the `scheduler/scheduler_config.json` file"
-            )
-            deprecate(
-                "clip_sample not set", "1.0.0", deprecation_message, standard_warn=False
-            )
-            new_config = dict(scheduler.config)
-            new_config["clip_sample"] = False
-            scheduler._internal_dict = FrozenDict(new_config)
-
-        is_unet_version_less_0_9_0 = hasattr(
-            unet.config, "_diffusers_version"
-        ) and version.parse(
-            version.parse(unet.config._diffusers_version).base_version
-        ) < version.parse(
-            "0.9.0.dev0"
-        )
-        is_unet_sample_size_less_64 = (
-            hasattr(unet.config, "sample_size") and unet.config.sample_size < 64
-        )
-        if is_unet_version_less_0_9_0 and is_unet_sample_size_less_64:
-            deprecation_message = (
-                "The configuration file of the unet has set the default `sample_size` to smaller than"
-                " 64 which seems highly unlikely. If your checkpoint is a fine-tuned version of any of the"
-                " following: \n- CompVis/stable-diffusion-v1-4 \n- CompVis/stable-diffusion-v1-3 \n-"
-                " CompVis/stable-diffusion-v1-2 \n- CompVis/stable-diffusion-v1-1 \n- runwayml/stable-diffusion-v1-5"
-                " \n- runwayml/stable-diffusion-inpainting \n you should change 'sample_size' to 64 in the"
-                " configuration file. Please make sure to update the config accordingly as leaving `sample_size=32`"
-                " in the config might lead to incorrect results in future versions. If you have downloaded this"
-                " checkpoint from the Hugging Face Hub, it would be very nice if you could open a Pull request for"
-                " the `unet/config.json` file"
-            )
-            deprecate(
-                "sample_size<64", "1.0.0", deprecation_message, standard_warn=False
-            )
-            new_config = dict(unet.config)
-            new_config["sample_size"] = 64
-            unet._internal_dict = FrozenDict(new_config)
-
         self.register_modules(
             vae_img=vae_img,
             vae_flow=vae_flow,
@@ -141,17 +73,8 @@ class FlowGenPipeline(DiffusionPipeline):
     def disable_vae_slicing(self):
         self.vae_flow.disable_slicing()
 
-    def enable_sequential_cpu_offload(self, gpu_id=0):
-        if is_accelerate_available():
-            from accelerate import cpu_offload
-        else:
-            raise ImportError("Please install accelerate via `pip install accelerate`")
-
-        device = torch.device(f"cuda:{gpu_id}")
-
-        for cpu_offloaded_model in [self.unet, self.text_encoder, self.vae]:
-            if cpu_offloaded_model is not None:
-                cpu_offload(cpu_offloaded_model, device)
+    def enable_sequential_cpu_offload(self):
+        self.enable_model_cpu_offload()
 
     @property
     def _execution_device(self):
@@ -364,8 +287,6 @@ class FlowGenPipeline(DiffusionPipeline):
             rand_device = "cpu" if device.type == "mps" else device
 
             if isinstance(generator, list):
-                shape = shape
-                # shape = (1,) + shape[1:]
                 latents = [
                     torch.randn(
                         shape, generator=generator[i], device=rand_device, dtype=dtype
@@ -384,8 +305,6 @@ class FlowGenPipeline(DiffusionPipeline):
                 )
             latents = latents.to(device)
 
-        # scale the initial noise by the standard deviation required by the scheduler
-        latents = latents * self.scheduler.init_noise_sigma
         return latents
 
     @torch.no_grad()
@@ -419,7 +338,6 @@ class FlowGenPipeline(DiffusionPipeline):
         self.check_inputs(prompt, height, width, callback_steps)
 
         # Define call parameters
-        # batch_size = 1 if isinstance(prompt, str) else len(prompt)
         batch_size = 1
         if latents is not None:
             batch_size = latents.shape[0]
@@ -427,9 +345,6 @@ class FlowGenPipeline(DiffusionPipeline):
             batch_size = len(prompt)
 
         device = self._execution_device
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-        # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
         # Encode input prompt
@@ -453,7 +368,7 @@ class FlowGenPipeline(DiffusionPipeline):
         timesteps = self.scheduler.timesteps
 
         # Prepare latent variables
-        num_channels_latents = self.unet.in_channels
+        num_channels_latents = self.unet.in_channels - 4  # Adjusted for concatenation
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             num_channels_latents,
@@ -466,7 +381,6 @@ class FlowGenPipeline(DiffusionPipeline):
             latents,
         )
         latents_dtype = latents.dtype
-        latents = latents[:, :4, ...]
 
         first_frame = first_frame[None].to(device)
         latents_img = self.vae_img.encode(first_frame.float()).latent_dist
@@ -478,26 +392,25 @@ class FlowGenPipeline(DiffusionPipeline):
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # Denoising loop
-        num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
+        latents_to_update = latents
         with self.progress_bar(total=num_inference_steps) as progress_bar:
-            for i, t in enumerate(timesteps):
-                # expand the latents if we are doing classifier free guidance
-                latents = torch.cat([latents_img, latents], dim=1)
+            for i, t in enumerate(tqdm(timesteps)):
+                # Concatenate latents_img and latents_to_update
+                latents_combined = torch.cat([latents_img, latents_to_update], dim=1)
+                # Prepare latent_model_input
                 latent_model_input = (
-                    torch.cat([latents] * 2) if do_classifier_free_guidance else latents
+                    torch.cat([latents_combined] * 2) if do_classifier_free_guidance else latents_combined
                 )
                 control_input = (
                     torch.cat([control] * 2)
                     if (do_classifier_free_guidance and control is not None)
                     else control
                 )
-                # print(control_input.mean())
 
-                latent_model_input = self.scheduler.scale_model_input(
-                    latent_model_input, t
-                )
+                # Scale the latent_model_input
+                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                # predict the noise residual
+                # Predict the noise
                 noise_pred = self.unet(
                     latent_model_input,
                     t,
@@ -505,36 +418,28 @@ class FlowGenPipeline(DiffusionPipeline):
                     encoder_hidden_states=text_embeddings,
                     control=control_input,
                 ).sample.to(dtype=latents_dtype)
-                # noise_pred = []
-                # import pdb
-                # pdb.set_trace()
-                # for batch_idx in range(latent_model_input.shape[0]):
-                #     noise_pred_single = self.unet(latent_model_input[batch_idx:batch_idx+1], t, encoder_hidden_states=text_embeddings[batch_idx:batch_idx+1]).sample.to(dtype=latents_dtype)
-                #     noise_pred.append(noise_pred_single)
-                # noise_pred = torch.cat(noise_pred)
 
-                # perform guidance
+                # Perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (
                         noise_pred_text - noise_pred_uncond
                     )
 
-                # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(
-                    noise_pred, t, latents[:, 4:, ...], **extra_step_kwargs
+                # Update latents_to_update
+                latents_to_update = self.scheduler.step(
+                    noise_pred, t, latents_to_update, **extra_step_kwargs
                 ).prev_sample
 
-                # call the callback, if provided
-                if i == len(timesteps) - 1 or (
-                    (i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0
-                ):
-                    progress_bar.update()
-                    if callback is not None and i % callback_steps == 0:
-                        callback(i, t, latents)
+                # Call the callback, if provided
+                if callback is not None and i % callback_steps == 0:
+                    callback(i, t, latents_to_update)
+
+                progress_bar.update()
 
         # Post-processing
-        video = self.decode_latents(latents)
+        latents_final = torch.cat([latents_img, latents_to_update], dim=1)
+        video = self.decode_latents(latents_final)
         print(video.mean())
 
         # Convert to tensor
