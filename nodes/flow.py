@@ -16,13 +16,24 @@ from ..common.tree import *
 from ..common.constants import *
 from ..common.utils import rename_state_dict_keys, print_loading_issues, flow_to_color
 
-from ..flowgen.pipelines.pipeline_flow_gen import FlowGenPipeline
-from transformers import CLIPTextModel, CLIPTokenizer
 from ..flowgen.models.unet3d import UNet3DConditionModel as UNet3DConditionModelFlow
+from ..animation.models.forward_unet import UNet3DConditionModel
+
+from ..flowgen.pipelines.pipeline_flow_gen import FlowGenPipeline
+from ..animation.pipelines.pipeline_animation import AnimationPipeline
+
+from transformers import CLIPTextModel, CLIPTokenizer
+
 from ..flowgen.models.controlnet import ControlNetModel
 from diffusers import AutoencoderKL, DDIMScheduler
 from diffusers.utils.import_utils import is_xformers_available
 from omegaconf import OmegaConf
+
+from ..animation.utils.convert_from_ckpt import (
+    convert_ldm_unet_checkpoint,
+    convert_ldm_clip_checkpoint,
+    convert_ldm_vae_checkpoint,
+)
 
 class IG_FlowModelLoader:
     @classmethod
@@ -56,6 +67,8 @@ class IG_FlowModelLoader:
         config_path = os.path.join(os.path.dirname(__file__), "..","configs")
 
         device = model_management.get_torch_device()
+        offload_device = model_management.unet_offload_device()
+        intermediate_device = model_management.intermediate_device()
         inference_config = OmegaConf.load(os.path.join(config_path, "configs_flowgen","inference","inference.yaml"))
 
         if not os.path.exists(checkpoint_path):
@@ -132,12 +145,16 @@ class IG_FlowPredictor:
         return {
             "required": {
                 "flow_model": ("FLOWMODEL",),
+                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
                 "prompt": ("STRING", {"multiline": True}),
                 "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
                 "first_frame": ("IMAGE",),
                 "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
                 "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
             },
+            "optional": {
+                "keep_model_loaded": ("BOOLEAN", {"default": False}),
+                }
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -146,10 +163,13 @@ class IG_FlowPredictor:
     CATEGORY = TREE_FLOW
 
     @torch.inference_mode()
-    def run(self, flow_model, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale):
+    def run(self, flow_model, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
         flow_pipeline = flow_model['flow_pipeline']
 
         device = model_management.get_torch_device()
+        offload_device = model_management.unet_offload_device()
+        intermediate_device = model_management.intermediate_device()
+        torch.manual_seed(seed)
 
         # The first_frame is already a tensor with batch dimension in ComfyUI
         first_frame_tensor = first_frame.to(device)
@@ -178,6 +198,9 @@ class IG_FlowPredictor:
         # Normalize the tensor to [-1, 1] range
         first_frame_tensor = first_frame_tensor * 2 - 1  # Assuming input is in [0, 1]
         stride = list(range(8, 121, 8))
+
+        flow_pipeline.to(device)
+
         # Run the flow pipeline
         sample = flow_pipeline(
             prompt=prompt,
@@ -193,6 +216,10 @@ class IG_FlowPredictor:
             return_dict=False,
         )
         print(f"Sample shape: {sample.shape}")
+
+        if not keep_model_loaded:
+            flow_pipeline.to(offload_device)
+            model_management.soft_empty_cache()
         # Extract the generated frames
         # videos_tensor = output['videos'][0]  # Assuming batch_size = 1
 
@@ -212,4 +239,157 @@ class IG_FlowPredictor:
         rgb_images = flow_to_color(flow_tensor, clip_flow=None, convert_to_bgr=False)
         
         print(f"RGB image shape: {rgb_images.shape}")
-        return (rgb_images,)
+        return (rgb_images.to(intermediate_device),)
+    
+
+class IG_FlowAnimator:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
+                "flow_samples": ("IMAGE",),
+                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
+                "first_frame": ("IMAGE",),
+                "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
+                "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
+            },
+            "optional": {
+                "keep_model_loaded": ("BOOLEAN", {"default": False}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("images",)
+    FUNCTION = "run"
+    CATEGORY = TREE_FLOW
+
+    DESCRIPTION = """
+    Generates a sequence of images (animation) using the flow samples.
+    """
+
+    @torch.inference_mode()
+    def run(self, ckpt_name, flow_samples, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
+        device = model_management.get_torch_device()
+        offload_device = model_management.unet_offload_device()
+        intermediate_device = model_management.intermediate_device()
+        torch.manual_seed(seed)
+
+        # Process first_frame
+        first_frame_tensor = first_frame.to(device)
+        first_frame_tensor = rearrange(first_frame_tensor, 'b h w c -> b c h w')
+
+        if first_frame_tensor.shape[1] == 4:
+            first_frame_tensor = first_frame_tensor[:, :3, :, :]
+
+        # Normalize the tensor to [-1, 1]
+        first_frame_tensor = first_frame_tensor * 2 - 1  # Assuming input is in [0, 1]
+
+        # Get height and width
+        height, width = first_frame_tensor.shape[2], first_frame_tensor.shape[3]
+
+        # Ensure height and width are divisible by 8
+        height = (height // 8) * 8
+        width = (width // 8) * 8
+
+        first_frame_tensor = torch.nn.functional.interpolate(
+            first_frame_tensor, size=(height, width), mode='bilinear', align_corners=False
+        )
+
+        # Process flow_samples
+        flow_samples_tensor = flow_samples.to(device)
+        # Assuming flow_samples are of shape [batch_size * frames, height, width, channels]
+        num_frames = flow_samples_tensor.shape[0]  # Assuming batch_size is 1
+
+        flow_samples_tensor = rearrange(flow_samples_tensor, '(b f) h w c -> b c f h w', b=1, f=num_frames)
+
+        sample = flow_samples_tensor
+
+        # Adjust sample as per the original code
+        sample = (sample * 2 - 1).clamp(-1, 1)
+        sample[:, 0:1, ...] = sample[:, 0:1, ...] * width
+        sample[:, 1:2, ...] = sample[:, 1:2, ...] * height
+
+        # Prepare flow_pre
+        flow_pre = sample.squeeze(0)  # Remove batch dimension
+        flow_pre = rearrange(flow_pre, 'c f h w -> f c h w')
+        flow_pre = torch.cat([torch.zeros(1, 2, height, width).to(flow_pre.device), flow_pre], dim=0)
+
+        # Initialize the animation pipeline
+        diffusers_model_path = os.path.join(folder_paths.models_dir, "diffusers")
+        checkpoint_path = os.path.join(diffusers_model_path, 'Motion-I2V')
+        config_path = os.path.join(os.path.dirname(__file__), "..","configs")
+        inference_config = OmegaConf.load(os.path.join(config_path, "configs_flowgen","inference","inference.yaml"))
+
+        stage2_path = os.path.join(checkpoint_path, "models","stage2","StableDiffusion")
+
+        tokenizer = CLIPTokenizer.from_pretrained(stage2_path, subfolder="tokenizer")
+        text_encoder = CLIPTextModel.from_pretrained(stage2_path, subfolder="text_encoder")
+        vae = AutoencoderKL.from_pretrained(stage2_path, subfolder="vae")
+        unet = UNet3DConditionModel.from_pretrained_2d(
+            stage2_path,
+            subfolder="unet",
+            unet_additional_kwargs=OmegaConf.to_container(
+                inference_config.unet_additional_kwargs
+            ),
+        )
+
+        # Load motion module
+        motion_module_path = os.path.join(checkpoint_path, "models", "stage2", "Motion_Module", "motion_block.bin")
+        print(f"[Loading motion module ckpt from {motion_module_path}]")
+        weight = torch.load(motion_module_path, map_location="cpu")
+        unet.load_state_dict(weight, strict=False)
+
+        # Load Checkpoint
+        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
+        ckpt_state_dict = torch.load(ckpt_path)
+
+        # Convert and load VAE checkpoint
+        converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_state_dict, vae.config)
+        vae.load_state_dict(converted_vae_checkpoint)
+
+        # Load personalized unet
+        print(f"[Loading personalized unet ckpt from {ckpt_state_dict}]")
+        unet.load_state_dict(ckpt_state_dict, strict=False)
+
+        # Enable xformers if available
+        if is_xformers_available():
+            unet.enable_xformers_memory_efficient_attention()
+        else:
+            assert False
+
+        animate_pipeline = AnimationPipeline(
+            vae=vae,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+            unet=unet,
+            scheduler=DDIMScheduler(
+                **OmegaConf.to_container(inference_config.noise_scheduler_kwargs)
+            ),
+        ).to(device)
+
+        # Run the animation pipeline
+        sample = animate_pipeline(
+            prompt=prompt,
+            first_frame=first_frame_tensor.squeeze(0),
+            flow_pre=flow_pre,
+            brush_mask=None,  # Optional, set if you have a brush mask
+            negative_prompt=negative_prompt,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            width=width,
+            height=height,
+            video_length=flow_pre.shape[0],  # Number of frames
+        ).videos
+
+        # Process the output images
+        sample = sample.clamp(0, 1)
+        sample = rearrange(sample, 'b f c h w -> (b f) h w c')
+
+        if not keep_model_loaded:
+            animate_pipeline.to(offload_device)
+            model_management.soft_empty_cache()
+
+        return (sample.to(intermediate_device),)
