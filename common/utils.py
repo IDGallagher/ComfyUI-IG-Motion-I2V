@@ -1,6 +1,7 @@
 import hashlib
 import os
 from typing import Iterable
+import re
 
 def get_sorted_dir_files_from_directory(directory: str, skip_first_images: int=0, select_every_nth: int=1, extensions: Iterable=None):
     directory = directory.strip()
@@ -35,3 +36,22 @@ def calculate_file_hash(filename: str, hash_every_n: int = 1):
                 h.update(mv[:n])
             i += 1
     return h.hexdigest()
+
+def rename_state_dict_keys(state_dict):
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        new_key = key
+        # Replace only whole words to avoid partial replacements
+        new_key = re.sub(r'\bquery\b', 'to_q', new_key)
+        new_key = re.sub(r'\bkey\b', 'to_k', new_key)
+        new_key = re.sub(r'\bvalue\b', 'to_v', new_key)
+        new_key = re.sub(r'\bproj_attn\b', 'to_out.0', new_key)
+        new_state_dict[new_key] = value
+    return new_state_dict
+
+def print_loading_issues(missing_keys, unexpected_keys):
+    if missing_keys:
+        print(f"Missing keys when loading state_dict: {missing_keys}")
+    if unexpected_keys:
+        print(f"Unexpected keys when loading state_dict: {unexpected_keys}")
+
