@@ -1,4 +1,5 @@
 import os
+from einops import rearrange
 import torch
 import json
 import torchvision.transforms as transforms
@@ -13,7 +14,7 @@ import model_management
 import folder_paths
 from ..common.tree import *
 from ..common.constants import *
-from ..common.utils import rename_state_dict_keys, print_loading_issues
+from ..common.utils import rename_state_dict_keys, print_loading_issues, flow_to_color
 
 from ..flowgen.pipelines.pipeline_flow_gen import FlowGenPipeline
 from transformers import CLIPTextModel, CLIPTokenizer
@@ -47,7 +48,7 @@ class IG_FlowModelLoader:
     Models are automatically downloaded to  
     ComfyUI/models/diffusers -folder
     """
-    @torch.no_grad()
+    @torch.inference_mode()
     def load(self, model):
         
         diffusers_model_path = os.path.join(folder_paths.models_dir, "diffusers")
@@ -144,7 +145,7 @@ class IG_FlowPredictor:
     FUNCTION = "run"
     CATEGORY = TREE_FLOW
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def run(self, flow_model, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale):
         flow_pipeline = flow_model['flow_pipeline']
 
@@ -157,7 +158,7 @@ class IG_FlowPredictor:
         print(f"Input tensor shape before permute: {first_frame_tensor.shape}")
 
         # Permute dimensions to [batch_size, channels, height, width]
-        first_frame_tensor = first_frame_tensor.permute(0, 3, 1, 2)
+        first_frame_tensor = rearrange(first_frame_tensor, 'b h w c -> b c h w')
         print(f"Input tensor shape after permute: {first_frame_tensor.shape}")
 
         # Remove alpha channel if present
@@ -189,8 +190,9 @@ class IG_FlowPredictor:
             width=width,
             stride=torch.tensor([stride]).to(device),
             control=None,
+            return_dict=False,
         )
-
+        print(f"Sample shape: {sample.shape}")
         # Extract the generated frames
         # videos_tensor = output['videos'][0]  # Assuming batch_size = 1
 
@@ -199,8 +201,15 @@ class IG_FlowPredictor:
         # images_tensor = torch.clamp(images_tensor, 0, 1)
 
         sample = (sample * 2 - 1).clamp(-1, 1)
-        # sample = sample * (1 - brush_mask.to(sample.device))
-        sample[:, 0:1, ...] = sample[:, 0:1, ...] * width
-        sample[:, 1:2, ...] = sample[:, 1:2, ...] * height
+        # # sample = sample * (1 - brush_mask.to(sample.device))
+        # sample[:, 0:1, ...] = sample[:, 0:1, ...] * width
+        # sample[:, 1:2, ...] = sample[:, 1:2, ...] * height
 
-        return (sample,)
+        # Rearrange the sample to [frames, height, width, channels]
+        flow_tensor = rearrange(sample, 'b c f h w -> (b f) h w c')
+
+        # Convert the optical flow to RGB images
+        rgb_images = flow_to_color(flow_tensor, clip_flow=None, convert_to_bgr=False)
+        
+        print(f"RGB image shape: {rgb_images.shape}")
+        return (rgb_images,)
