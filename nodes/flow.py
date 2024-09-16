@@ -29,6 +29,7 @@ from diffusers import AutoencoderKL, DDIMScheduler
 from diffusers.utils.import_utils import is_xformers_available
 from omegaconf import OmegaConf
 
+from safetensors import safe_open
 from ..animation.utils.convert_from_ckpt import (
     convert_ldm_unet_checkpoint,
     convert_ldm_clip_checkpoint,
@@ -157,8 +158,8 @@ class IG_FlowPredictor:
                 }
         }
 
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("images",)
+    RETURN_TYPES = ("FLOW","IMAGE",)
+    RETURN_NAMES = ("flow","preview",)
     FUNCTION = "run"
     CATEGORY = TREE_FLOW
 
@@ -202,7 +203,7 @@ class IG_FlowPredictor:
         flow_pipeline.to(device)
 
         # Run the flow pipeline
-        sample = flow_pipeline(
+        flow_tensor = flow_pipeline(
             prompt=prompt,
             first_frame=first_frame_tensor.squeeze(0),
             video_length=len(stride),
@@ -215,7 +216,7 @@ class IG_FlowPredictor:
             control=None,
             return_dict=False,
         )
-        print(f"Sample shape: {sample.shape}")
+        print(f"Flow tensor shape: {flow_tensor.shape}")
 
         if not keep_model_loaded:
             flow_pipeline.to(offload_device)
@@ -227,19 +228,20 @@ class IG_FlowPredictor:
         # images_tensor = (videos_tensor + 1) / 2
         # images_tensor = torch.clamp(images_tensor, 0, 1)
 
-        sample = (sample * 2 - 1).clamp(-1, 1)
+        flow_tensor = (flow_tensor * 2 - 1).clamp(-1, 1)
         # # sample = sample * (1 - brush_mask.to(sample.device))
-        # sample[:, 0:1, ...] = sample[:, 0:1, ...] * width
-        # sample[:, 1:2, ...] = sample[:, 1:2, ...] * height
-
-        # Rearrange the sample to [frames, height, width, channels]
-        flow_tensor = rearrange(sample, 'b c f h w -> (b f) h w c')
-
-        # Convert the optical flow to RGB images
-        rgb_images = flow_to_color(flow_tensor, clip_flow=None, convert_to_bgr=False)
         
-        print(f"RGB image shape: {rgb_images.shape}")
-        return (rgb_images.to(intermediate_device),)
+        # Create image preview of flow tensor
+        flow_preview = rearrange(flow_tensor, 'b c f h w -> (b f) h w c')
+        flow_preview = flow_to_color(flow_preview, clip_flow=None, convert_to_bgr=False)
+
+        # Scale flow tensor, rearrange, and add an empty frame
+        flow_tensor[:, 0:1, ...] = flow_tensor[:, 0:1, ...] * width
+        flow_tensor[:, 1:2, ...] = flow_tensor[:, 1:2, ...] * height
+        flow_tensor = rearrange(flow_tensor, 'b c f h w -> (b f) c h w')
+        flow_tensor = torch.cat([torch.zeros(1, 2, height, width).to(flow_tensor.device), flow_tensor], dim=0)
+
+        return (flow_tensor.to(intermediate_device), flow_preview.to(intermediate_device),)
     
 
 class IG_FlowAnimator:
@@ -248,7 +250,7 @@ class IG_FlowAnimator:
         return {
             "required": {
                 "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
-                "flow_samples": ("IMAGE",),
+                "flow": ("FLOW",),
                 "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
                 "prompt": ("STRING", {"multiline": True}),
                 "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
@@ -271,7 +273,7 @@ class IG_FlowAnimator:
     """
 
     @torch.inference_mode()
-    def run(self, ckpt_name, flow_samples, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
+    def run(self, ckpt_name, flow, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
@@ -299,23 +301,7 @@ class IG_FlowAnimator:
         )
 
         # Process flow_samples
-        flow_samples_tensor = flow_samples.to(device)
-        # Assuming flow_samples are of shape [batch_size * frames, height, width, channels]
-        num_frames = flow_samples_tensor.shape[0]  # Assuming batch_size is 1
-
-        flow_samples_tensor = rearrange(flow_samples_tensor, '(b f) h w c -> b c f h w', b=1, f=num_frames)
-
-        sample = flow_samples_tensor
-
-        # Adjust sample as per the original code
-        sample = (sample * 2 - 1).clamp(-1, 1)
-        sample[:, 0:1, ...] = sample[:, 0:1, ...] * width
-        sample[:, 1:2, ...] = sample[:, 1:2, ...] * height
-
-        # Prepare flow_pre
-        flow_pre = sample.squeeze(0)  # Remove batch dimension
-        flow_pre = rearrange(flow_pre, 'c f h w -> f c h w')
-        flow_pre = torch.cat([torch.zeros(1, 2, height, width).to(flow_pre.device), flow_pre], dim=0)
+        flow_samples = flow.to(device)
 
         # Initialize the animation pipeline
         diffusers_model_path = os.path.join(folder_paths.models_dir, "diffusers")
@@ -342,18 +328,22 @@ class IG_FlowAnimator:
         weight = torch.load(motion_module_path, map_location="cpu")
         unet.load_state_dict(weight, strict=False)
 
-        # Load Checkpoint
-        ckpt_path = folder_paths.get_full_path("checkpoints", ckpt_name)
-        ckpt_state_dict = torch.load(ckpt_path)
+        dreambooth_state_dict = {}
+        with safe_open(
+            os.path.join(checkpoint_path, "models", "stage2", "DreamBooth_LoRA", "realisticVisionV51_v20Novae.safetensors"),
+            framework="pt",
+            device="cpu",
+        ) as f:
+            for key in f.keys():
+                dreambooth_state_dict[key] = f.get_tensor(key)
 
-        # Convert and load VAE checkpoint
-        converted_vae_checkpoint = convert_ldm_vae_checkpoint(ckpt_state_dict, vae.config)
-        vae.load_state_dict(converted_vae_checkpoint)
+        converted_vae_checkpoint = convert_ldm_vae_checkpoint(dreambooth_state_dict, vae.config)
+        vae.load_state_dict(rename_state_dict_keys(converted_vae_checkpoint))
+        personalized_unet_path = os.path.join(checkpoint_path, "models", "stage2", "DreamBooth_LoRA", "realistic_unet.ckpt")
+        print("[Loading personalized unet ckpt from {}]".format(personalized_unet_path))
+        unet.load_state_dict(rename_state_dict_keys(torch.load(personalized_unet_path)), strict=False)
 
-        # Load personalized unet
-        print(f"[Loading personalized unet ckpt from {ckpt_state_dict}]")
-        unet.load_state_dict(ckpt_state_dict, strict=False)
-
+        print("finished loading")
         # Enable xformers if available
         if is_xformers_available():
             unet.enable_xformers_memory_efficient_attention()
@@ -374,19 +364,19 @@ class IG_FlowAnimator:
         sample = animate_pipeline(
             prompt=prompt,
             first_frame=first_frame_tensor.squeeze(0),
-            flow_pre=flow_pre,
+            flow_pre=flow_samples,
             brush_mask=None,  # Optional, set if you have a brush mask
             negative_prompt=negative_prompt,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             width=width,
             height=height,
-            video_length=flow_pre.shape[0],  # Number of frames
+            video_length=flow_samples.shape[0],  # Number of frames
         ).videos
-
+        print(f"sample {sample.shape} w {width} h {height}")
+        
         # Process the output images
-        sample = sample.clamp(0, 1)
-        sample = rearrange(sample, 'b f c h w -> (b f) h w c')
+        sample = rearrange(sample, 'b c f h w -> (b f) h w c')
 
         if not keep_model_loaded:
             animate_pipeline.to(offload_device)
