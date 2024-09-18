@@ -1,14 +1,187 @@
 import asyncio
 import base64
+import glob
 from io import BytesIO
 import os
 import json
 from PIL import Image, ImageOps
 import numpy as np
 from comfy_execution.graph import ExecutionBlocker
+import folder_paths
 from server import PromptServer
 from aiohttp import web
 import hashlib
+
+# Directory node save settings
+CHUNK_SIZE = 1024
+dir_painter_node = os.path.dirname(__file__)
+extension_path = os.path.join(os.path.abspath(dir_painter_node))
+nodes_settings_path = os.path.join(extension_path, "settings_nodes")
+
+
+# Create directory settings_nodes if not exists
+if not os.path.exists(nodes_settings_path):
+    os.mkdir(nodes_settings_path)
+
+    tipsfile = os.path.join(nodes_settings_path, "Stores painter nodes settings.txt")
+    with open(tipsfile, "w+", encoding="utf-8") as tipsfile:
+        tipsfile.write("Painter node saved settings!")
+
+
+# Function create file json file
+PREFIX = "_setting.json"
+
+
+def isFileName(filename):
+    if (
+        not filename
+        and filename is not None
+        and (type(filename) == str and filename.strip() == "")
+    ):
+        print("Filename is incorrect")
+        return False
+    return True
+
+
+def create_settings_json(filename):
+    try:
+        json_file = os.path.join(nodes_settings_path, filename)
+        if not os.path.isfile(json_file):
+            print(f"File settings for '{filename}' is not found! Create file!")
+            with open(json_file, "w") as f:
+                json.dump({}, f)
+
+    except Exception as e:
+        print(f"Error: ${e}")
+
+
+def get_settings_json(filename, notExistCreate=True):
+    if not isFileName(filename):
+        return {}
+
+    json_file = os.path.join(nodes_settings_path, filename)
+    if os.path.isfile(json_file):
+        f = open(json_file, "rb")
+        try:
+            load_data = json.load(f)
+            return load_data
+        except Exception as e:
+            print("Error load json file: ", e)
+            if notExistCreate:
+                f.close()
+                os.remove(json_file)
+                create_settings_json(filename)
+        finally:
+            f.close()
+    else:
+        create_settings_json(filename)
+
+    return {}
+
+
+# Load json file
+@PromptServer.instance.routes.get("/mi2v/loading_node_settings/{nodeName}")
+async def loadingSettings(request):
+    filename = request.match_info.get("nodeName", None)
+    if not isFileName(filename):
+        load_data = {}
+    else:
+        load_data = get_settings_json(filename + PREFIX)
+
+    return web.json_response({"settings_nodes": load_data})
+
+
+# Load json's files
+@PromptServer.instance.routes.get("/mi2v/loading_all_node_settings")
+async def loadingAllSettings(request):
+    load_data = []
+    jsonFiles = glob.glob("Paint_*.json", root_dir=nodes_settings_path)
+
+    for f in jsonFiles:
+        path_to_file = os.path.join(nodes_settings_path, f)
+
+        if os.path.isfile(path_to_file):
+            file = open(path_to_file, "rb")
+            try:
+                jsonData = json.load(file)
+                load_data.append({"name":f.replace(PREFIX,""), "value": jsonData})
+            except Exception as e:
+                print("Error load json file: ", e)
+
+            finally:
+                file.close()
+        else:
+            print(f"File {f} not file!")
+
+    return web.json_response({"all_settings_nodes": load_data})
+
+
+# Save data to json file
+@PromptServer.instance.routes.post("/mi2v/save_node_settings")
+async def saveSettings(request):
+    try:
+        if not request.content_type.startswith("multipart/"):
+            return web.json_response(
+                {"error": "multipart/* content type expected"}, status=400
+            )
+
+        reader = await request.multipart()
+        filename_reader = await reader.next()
+        filename = await filename_reader.text()
+
+        data_reader = await reader.next()
+
+        if isFileName(filename):
+            filename = filename + PREFIX
+            json_file = os.path.join(nodes_settings_path, filename)
+
+            if os.path.isfile(json_file):
+                with open(json_file, "wb") as f:
+                    while True:
+                        chunk = await data_reader.read_chunk(size=CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+                return web.json_response(
+                    {"message": "Painter data saved successfully"}, status=200
+                )
+
+            else:
+                create_settings_json(filename)
+                return web.json_response(
+                    {"message": "Painter file settings created!"}, status=200
+                )
+
+        else:
+            raise Exception("Filename is not found or incorrect!")
+
+    except Exception as e:
+        print("Error save json file: ", e)
+        return web.json_response({"error": str(e)}, status=500)
+
+
+# Remove file settings painter node data
+@PromptServer.instance.routes.post("/mi2v/remove_node_settings")
+async def removeSettings(request):
+    try:
+        json_data = await request.json()
+        filename = json_data.get("name")
+
+        if isFileName(filename):
+            filename = filename + PREFIX
+            json_file = os.path.join(nodes_settings_path, filename)
+
+            os.remove(json_file)
+            return web.json_response(
+                {"message": "Painter data removed successfully"}, status=200
+            )
+
+    except OSError as e:
+        return web.json_response(
+            {"error": "Error: %s - %s." % (e.filename, e.strerror)}, status=500
+        )
+
 
 # Piping image
 PAINTER_DICT = {}  # Painter nodes dict instances
@@ -48,15 +221,26 @@ async def wait_canvas_change(unique_id, time_out=40):
 # end - Piping image
 
 
-class MI2V_MotionPainter:
+class MI2V_MotionPainter(object):
     @classmethod
     def INPUT_TYPES(cls):
+        cls.canvas_set = False
+        
+        work_dir = folder_paths.get_input_directory()
+        imgs = [
+            img
+            for img in os.listdir(work_dir)
+            if os.path.isfile(os.path.join(work_dir, img))
+        ]
+
         return {
             "required": {
-                "image": ("IMAGE",),
+                "images": ("IMAGE",),
+                "image": (sorted(imgs),),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID"
+
             },
             "optional": {
                 "pause": ("BOOLEAN", {"default": False}),
@@ -67,16 +251,16 @@ class MI2V_MotionPainter:
     FUNCTION = "execute"
     CATEGORY = "Custom Nodes"
 
-    def execute(self, image, unique_id, pause):
+    def execute(self, images, image, unique_id, pause):
         # Piping image input
         if unique_id not in PAINTER_DICT:
             PAINTER_DICT[unique_id] = self
 
-        if image is not None:
+        if images is not None:
 
             input_images = []
 
-            for imgs in image:
+            for imgs in images:
                 i = 255.0 * imgs.cpu().numpy()
                 i = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
                 input_images.append(toBase64ImgUrl(i))
@@ -92,16 +276,16 @@ class MI2V_MotionPainter:
                 print(f"MotionPainter_{unique_id}: Image received, canvas changed!")
         # end - Piping image input
         # The actual processing will be handled on the client side.
-        return (image if not pause else ExecutionBlocker(None), None)
+        return (images if not pause else ExecutionBlocker(None), None)
 
     @classmethod
-    def IS_CHANGED(cls, image, unique_id):
+    def IS_CHANGED(cls, images, image, unique_id):
         # Use the hash of the image and unique ID to determine if the node has changed.
         m = hashlib.sha256()
         m.update(str(unique_id).encode('utf-8'))
         # Assuming 'image' is a filepath or an object that can be hashed.
-        if isinstance(image, str) and os.path.isfile(image):
-            with open(image, "rb") as f:
+        if isinstance(images, str) and os.path.isfile(images):
+            with open(images, "rb") as f:
                 m.update(f.read())
         return m.hexdigest()
     
