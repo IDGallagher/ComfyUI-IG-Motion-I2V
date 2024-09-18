@@ -249,7 +249,7 @@ class MI2V_FlowAnimator:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
+                # "ckpt_name": (folder_paths.get_filename_list("checkpoints"), {"tooltip": "The name of the checkpoint (model) to load."}),
                 "flow": ("FLOW",),
                 "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
                 "prompt": ("STRING", {"multiline": True}),
@@ -273,7 +273,7 @@ class MI2V_FlowAnimator:
     """
 
     @torch.inference_mode()
-    def run(self, ckpt_name, flow, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
+    def run(self, flow, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
