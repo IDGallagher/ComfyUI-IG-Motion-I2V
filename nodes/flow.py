@@ -36,7 +36,7 @@ from ..animation.utils.convert_from_ckpt import (
     convert_ldm_vae_checkpoint,
 )
 
-class IG_FlowModelLoader:
+class MI2V_FlowModelLoader:
     @classmethod
     def INPUT_TYPES(s):
         return {"required": {            
@@ -140,7 +140,7 @@ class IG_FlowModelLoader:
         }
         return (flow_model,)
 
-class IG_FlowPredictor:
+class MI2V_FlowPredictor:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -244,7 +244,7 @@ class IG_FlowPredictor:
         return (flow_tensor.to(intermediate_device), flow_preview.to(intermediate_device),)
     
 
-class IG_FlowAnimator:
+class MI2V_FlowAnimator:
     @classmethod
     def INPUT_TYPES(s):
         return {
