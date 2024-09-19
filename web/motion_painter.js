@@ -24,9 +24,10 @@ const SaveSettingsJsonLS = localStorage.getItem(
   "Comfy.Settings.mi2v.MotionPainter.SaveSettingsJson",
   false
 );
-let painters_settings_json = SaveSettingsJsonLS
-  ? JSON.parse(SaveSettingsJsonLS)
-  : false;
+// let painters_settings_json = SaveSettingsJsonLS
+//   ? JSON.parse(SaveSettingsJsonLS)
+//   : false;
+let painters_settings_json = true
 //
 
 const removeIcon =
@@ -367,7 +368,7 @@ class Painter {
   }
 
   setValueElementsLS() {
-    this.painter_wrapper_settings.remove();
+    // this.painter_wrapper_settings.remove();
     this.mainSettings();
   }
 
@@ -623,7 +624,7 @@ class Painter {
 
   clearCanvas() {
     this.canvas.clear();
-    this.canvas.backgroundColor = this.bgColor.value || "#000000";
+    this.canvas.backgroundColor = "#000000";
     this.canvas.requestRenderAll();
 
     this.addToHistory();
@@ -1729,7 +1730,7 @@ class Painter {
     this.undo_history.push(objs);
     this.redo_history = [];
     if (this.undo_history.length) {
-      this.undo_button.disabled = false;
+    //   this.undo_button.disabled = false;
     }
   }
 
@@ -1769,14 +1770,14 @@ class Painter {
     this.canvas.loadFromJSON(canvas_settings, () => {
       this.canvas.renderAll();
       this.uploadPaintFile(this.node.name);
-      this.bgColor.value = getColorHEX(data.background).color || "";
+    //   this.bgColor.value = getColorHEX(data.background).color || "";
     });
   }
 
   undoRedoLoadData(data) {
     this.canvas.loadFromJSON(data, () => {
       this.canvas.renderAll();
-      this.bgColor.value = getColorHEX(data.background).color || "";
+    //   this.bgColor.value = getColorHEX(data.background).color || "";
     });
   }
 
@@ -1969,6 +1970,7 @@ class Painter {
     img.onload = () => {
       this.node.imgs = [img];
       app.graph.setDirtyCanvas(true);
+      this.node.onResize();
     };
 
     let folder_separator = name.lastIndexOf("/");
@@ -2071,10 +2073,10 @@ function PainterWidget(node, inputName, inputData, app) {
     callback: () => {},
     draw: function (ctx, _, widgetWidth, y, widgetHeight) {
       const margin = 10,
-        left_offset = 8,
-        top_offset = 50,
-        visible = app.canvas.ds.scale > 0.6 && this.type === "painter_widget",
-        w = widgetWidth - margin * 2 - 80,
+        left_offset = 1,
+        top_offset = 1,
+        visible = app.canvas.ds.scale > 0.0 && this.type === "painter_widget",
+        w = widgetWidth - margin * 4,
         clientRectBound = ctx.canvas.getBoundingClientRect(),
         transform = new DOMMatrix()
           .scaleSelf(
@@ -2089,7 +2091,6 @@ function PainterWidget(node, inputName, inputData, app) {
       if (node?.imgs && typeof node.imgs !== undefined) {
         aspect_ratio = node.imgs[0].naturalHeight / node.imgs[0].naturalWidth;
       }
-
       Object.assign(this.painter_wrap.style, {
         left: `${
           transform.a * margin * left_offset +
@@ -2100,7 +2101,7 @@ function PainterWidget(node, inputName, inputData, app) {
           transform.d + transform.f + top_offset + clientRectBound.top
         }px`,
         width: `${w * transform.a}px`,
-        height: `${w * transform.d}px`,
+        height: `${w * transform.d * aspect_ratio}px`,
         position: "absolute",
         zIndex: app.graph._nodes.indexOf(node),
       });
@@ -2119,50 +2120,50 @@ function PainterWidget(node, inputName, inputData, app) {
         height: w * aspect_ratio + "px",
       });
 
-      Array.from(
-        this.painter_wrap.children[2].querySelectorAll(
-          "input, button, input:after, span, div.painter_drawning_box"
-        )
-      ).forEach((element) => {
-        if (element.type == "number") {
-          Object.assign(element.style, {
-            width: `${40 * transform.a}px`,
-            height: `${21 * transform.d}px`,
-            fontSize: `${transform.d * 10.0}px`,
-          });
-        } else if (element.tagName == "SPAN") {
-          // NOPE
-        } else if (element.tagName == "DIV") {
-          Object.assign(element.style, {
-            width: `${88 * transform.a}px`,
-            left: `${-90 * transform.a}px`,
-          });
-        } else {
-          let sizesEl = { w: 25, h: 25, fs: 10 };
+    //   Array.from(
+    //     this.painter_wrap.children[2].querySelectorAll(
+    //       "input, button, input:after, span, div.painter_drawning_box"
+    //     )
+    //   ).forEach((element) => {
+    //     if (element.type == "number") {
+    //       Object.assign(element.style, {
+    //         width: `${40 * transform.a}px`,
+    //         height: `${21 * transform.d}px`,
+    //         fontSize: `${transform.d * 10.0}px`,
+    //       });
+    //     } else if (element.tagName == "SPAN") {
+    //       // NOPE
+    //     } else if (element.tagName == "DIV") {
+    //       Object.assign(element.style, {
+    //         width: `${88 * transform.a}px`,
+    //         left: `${-90 * transform.a}px`,
+    //       });
+    //     } else {
+    //       let sizesEl = { w: 25, h: 25, fs: 10 };
 
-          if (element?.customSize) {
-            sizesEl = element.customSize;
-          }
+    //       if (element?.customSize) {
+    //         sizesEl = element.customSize;
+    //       }
 
-          if (element.id.includes("lock")) sizesEl = { w: 75, h: 15, fs: 10 };
-          if (element.id.includes("zpos")) sizesEl = { w: 80, h: 15, fs: 7 };
-          if (
-            ["painter_change_mode", "painter_canvas_size"].includes(element.id)
-          )
-            sizesEl.w = 75;
-          if (element.hasAttribute("painter_object"))
-            sizesEl = { w: 58, h: 16, fs: 10 };
-          if (element.hasAttribute("bgImage"))
-            sizesEl = { w: 60, h: 20, fs: 10 };
+    //       if (element.id.includes("lock")) sizesEl = { w: 75, h: 15, fs: 10 };
+    //       if (element.id.includes("zpos")) sizesEl = { w: 80, h: 15, fs: 7 };
+    //       if (
+    //         ["painter_change_mode", "painter_canvas_size"].includes(element.id)
+    //       )
+    //         sizesEl.w = 75;
+    //       if (element.hasAttribute("painter_object"))
+    //         sizesEl = { w: 58, h: 16, fs: 10 };
+    //       if (element.hasAttribute("bgImage"))
+    //         sizesEl = { w: 60, h: 20, fs: 10 };
 
-          Object.assign(element.style, {
-            cursor: "pointer",
-            width: `${sizesEl.w * transform.a}px`,
-            height: `${sizesEl.h * transform.d}px`,
-            fontSize: `${transform.d * sizesEl.fs}px`,
-          });
-        }
-      });
+    //       Object.assign(element.style, {
+    //         cursor: "pointer",
+    //         width: `${sizesEl.w * transform.a}px`,
+    //         height: `${sizesEl.h * transform.d}px`,
+    //         fontSize: `${transform.d * sizesEl.fs}px`,
+    //       });
+    //     }
+    //   });
       this.painter_wrap.hidden = !visible;
     },
   };
@@ -2182,12 +2183,12 @@ function PainterWidget(node, inputName, inputData, app) {
   node.painter.image.value = node.name;
 
   node.painter.propertiesLS();
-  node.painter.makeElements();
+//   node.painter.makeElements();
 
   document.body.appendChild(widget.painter_wrap);
 
   node.addWidget("button", "Clear Canvas", "clear_painer", () => {
-    node.painter.list_objects_panel__items.innerHTML = "";
+    // node.painter.list_objects_panel__items.innerHTML = "";
     node.painter.clearCanvas();
   });
 
@@ -2215,44 +2216,20 @@ function PainterWidget(node, inputName, inputData, app) {
     if (node?.imgs && typeof this.imgs !== undefined) {
       aspect_ratio = this.imgs[0].naturalHeight / this.imgs[0].naturalWidth;
     }
-    let buffer = 90;
+    let buffer = 120;
 
     if (w > this.painter.maxNodeSize) w = w - (w - this.painter.maxNodeSize);
     if (w < 600) w = 600;
 
     h = w * aspect_ratio + buffer;
-
+    console.log(`ON RESIZE ${w} ${h} ${this.imgs}`)
     this.size = [w, h];
   };
 
   node.onDrawBackground = function (ctx) {
     if (!this.flags.collapsed) {
       node.painter.canvas.wrapperEl.hidden = false;
-      if (this.imgs && this.imgs.length) {
-        if (app.canvas.ds.scale > 0.8) {
-          let [dw, dh] = this.size;
 
-          let w = this.imgs[0].naturalWidth;
-          let h = this.imgs[0].naturalHeight;
-
-          const scaleX = dw / w;
-          const scaleY = dh / h;
-          const scale = Math.min(scaleX, scaleY, 1);
-
-          w *= scale / 8;
-          h *= scale / 8;
-
-          let x = 5;
-          let y = dh - h - 5;
-
-          ctx.drawImage(this.imgs[0], x, y, w, h);
-          ctx.font = "10px serif";
-          ctx.strokeStyle = "white";
-          ctx.strokeRect(x, y, w, h);
-          ctx.fillStyle = "rgba(255,255,255,0.7)";
-          ctx.fillText("Mask", w / 2, dh - 10);
-        }
-      }
     } else {
       node.painter.canvas.wrapperEl.hidden = true;
     }
@@ -2324,46 +2301,21 @@ function PainterWidget(node, inputName, inputData, app) {
       img.src = images[0];
     })
       .then(async (result) => {
-        switch (node.LS_Cls.LS_Painters.settings.pipingSettings.action.name) {
-          case "image":
-            await new Promise(async (res) => {
-              let { scale, sendToBack = true } =
-                node.LS_Cls.LS_Painters.settings.pipingSettings.action.options;
-
-              if (typeof scale === "number") result.scale(scale);
-
-              node.painter.canvas.add(result);
-              sendToBack && node.painter.canvas.sendToBack(result);
-              node.painter.canvas.renderAll();
-
-              if (node.painter.mode) {
-                node.painter.viewListObjects(
-                  node.painter.list_objects_panel__items
-                );
+        await new Promise((res) => {
+            node.painter.canvas.setBackgroundImage(
+              result,
+              async () => {
+                node.painter.canvas.renderAll();
+                await node.painter.uploadPaintFile(node.name);
+                res(true);
+              },
+              {
+                scaleX: node.painter.canvas.width / result.width,
+                scaleY: node.painter.canvas.height / result.height,
+                strokeWidth: 0,
               }
-
-              await node.painter.uploadPaintFile(node.name);
-              res(true);
-            });
-            break;
-          case "background":
-          default:
-            await new Promise((res) => {
-              node.painter.canvas.setBackgroundImage(
-                result,
-                async () => {
-                  node.painter.canvas.renderAll();
-                  await node.painter.uploadPaintFile(node.name);
-                  res(true);
-                },
-                {
-                  scaleX: node.painter.canvas.width / result.width,
-                  scaleY: node.painter.canvas.height / result.height,
-                  strokeWidth: 0,
-                }
-              );
-            });
-        }
+            );
+          });
       })
       .then(() => {
         api

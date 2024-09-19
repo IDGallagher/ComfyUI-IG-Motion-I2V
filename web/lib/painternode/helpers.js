@@ -126,30 +126,6 @@ class LS_Class {
     if (this.painters_settings_json) {
       const parent = context.painter.canvas.wrapperEl;
 
-      const message = createWindowModal({
-        ...THEMES_MODAL_WINDOW.warning,
-        textTitle: "Loading",
-        textBody: [
-          makeElement("div", {
-            innerHTML:
-              "Please wait, <span style='font-weight: bold; color: orange'>Painter node</span> settings are loading. Loading times may take a long time if large images have been added to the canvas!",
-          }),
-        ],
-        options: {
-          auto: {
-            autohide: true,
-            autoshow: true,
-            autoremove: true,
-            autoremove: true,
-            timewait: 500,
-            propStyles: { opacity: 0 },
-            propPreStyles: { display: "flex" },
-          },
-          close: { showClose: false },
-          parent,
-        },
-      });
-
       this.LS_Painters = await this.loadData();
     } else {
       const lsPainter = localStorage.getItem(this.name);
@@ -206,7 +182,7 @@ class LS_Class {
         })
       );
 
-      const rawResponse = await fetch("/alekpet/save_node_settings", {
+      const rawResponse = await fetch("/mi2v/save_node_settings", {
         method: "POST",
         body: formData,
       });
@@ -224,7 +200,7 @@ class LS_Class {
   async loadData() {
     try {
       const rawResponse = await api.fetchApi(
-        `/alekpet/loading_node_settings/${this.name}`
+        `/mi2v/loading_node_settings/${this.name}`
       );
       if (rawResponse.status !== 200)
         throw new Error(
@@ -245,7 +221,7 @@ class LS_Class {
   async removeData() {
     try {
       if (this.painters_settings_json) {
-        const rawResponse = await fetch("/alekpet/remove_node_settings", {
+        const rawResponse = await fetch("/mi2v/remove_node_settings", {
           method: "POST",
           headers: {
             Accept: "application/json",
