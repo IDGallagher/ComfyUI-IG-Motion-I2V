@@ -177,36 +177,52 @@ class Painter {
   }
 
   makeArrow(fromX, fromY, toX, toY) {
-    var headlen = 10; // length of head in pixels
+    var headlen = 20; // length of head in pixels
+    var offset = -10;
+    var perpOffset = 3;
     var angle = Math.atan2(toY - fromY, toX - fromX);
-  
+    var length = Math.sqrt((toX - fromX)**2 + (toY - fromY)**2);
+    
+    var newToX = toX - (toX - fromX) * offset / length + perpOffset * Math.sin(angle) * (toY - fromY) / Math.abs(toY - fromY);
+    var newToY = toY - (toY - fromY) * offset / length + perpOffset * Math.cos(angle) * (toX - fromX) / Math.abs(toX - fromX);
+
     // Calculate the arrowhead points
-    var arrowX1 = toX - headlen * Math.cos(angle - Math.PI / 6);
-    var arrowY1 = toY - headlen * Math.sin(angle - Math.PI / 6);
-    var arrowX2 = toX - headlen * Math.cos(angle + Math.PI / 6);
-    var arrowY2 = toY - headlen * Math.sin(angle + Math.PI / 6);
+    var arrowX1 = newToX - headlen * Math.cos(angle - Math.PI / 6);
+    var arrowY1 = newToY - headlen * Math.sin(angle - Math.PI / 6);
+    var arrowX2 = newToX - headlen * Math.cos(angle + Math.PI / 6);
+    var arrowY2 = newToY - headlen * Math.sin(angle + Math.PI / 6);
   
     // Create the main line of the arrow
+    let strokWidth = 6;
     var line = new fabric.Line([fromX, fromY, toX, toY], {
-      stroke: toRGBA("#FFFFFF", 1.0),
-      strokeWidth: 6,
+      stroke: toRGBA("#FF0000", 1.0),
+      strokeWidth: strokWidth,
+    });
+    var line2 = new fabric.Line([fromX+1, fromY+1, toX+1, toY+1], {
+        stroke: toRGBA("#000000", 1.0),
+        strokeWidth: strokWidth,
+    });
+    var line3 = new fabric.Line([fromX-1, fromY-1, toX-1, toY-1], {
+        stroke: toRGBA("#000000", 1.0),
+        strokeWidth: strokWidth,
     });
   
     // Create the arrowhead as a polygon
     var arrowhead = new fabric.Polygon(
       [
-        { x: toX, y: toY },
+        { x: newToX, y: newToY },
         { x: arrowX1, y: arrowY1 },
         { x: arrowX2, y: arrowY2 },
       ],
       {
-        fill: toRGBA("#FFFFFF", 1.0),
-        strokeWidth: 0,
+        fill: toRGBA("#FF0000", 1.0),
+        stroke: toRGBA("#000000", 1.0),
+        strokeWidth: 1,
       }
     );
   
     // Group the line and arrowhead together
-    var arrow = new fabric.Group([line, arrowhead], {
+    var arrow = new fabric.Group([line3, line2, line, arrowhead], {
       selectable: false,
       lockMovementX: true,
       lockMovementY: true,
