@@ -110,7 +110,7 @@ class IPAttnProcessor(nn.Module):
         temb=None,
     ):
         residual = hidden_states
-
+        print(f" ATTN ")
         if attn.spatial_norm is not None:
             hidden_states = attn.spatial_norm(hidden_states, temb)
 

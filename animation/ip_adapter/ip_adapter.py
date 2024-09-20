@@ -41,7 +41,7 @@ class ImageProjModel(torch.nn.Module):
 
 class IPAdapter:
 
-    def __init__(self, sd_pipe, image_encoder_path, ip_ckpt, device, num_tokens=4):
+    def __init__(self, sd_pipe, image_encoder_path, ip_ckpt, device, dtype=torch.float32, num_tokens=4):
 
         self.device = device
         self.image_encoder_path = image_encoder_path
@@ -52,7 +52,7 @@ class IPAdapter:
         self.set_ip_adapter()
 
         # load image encoder
-        self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(self.image_encoder_path).to(self.device, dtype=torch.float16)
+        self.image_encoder = CLIPVisionModelWithProjection.from_pretrained(self.image_encoder_path).to(self.device, dtype=dtype)
         self.clip_image_processor = CLIPImageProcessor()
         # image proj model
         self.image_proj_model = self.init_proj()
@@ -64,12 +64,13 @@ class IPAdapter:
             cross_attention_dim=self.pipe.unet.config.cross_attention_dim,
             clip_embeddings_dim=self.image_encoder.config.projection_dim,
             clip_extra_context_tokens=self.num_tokens,
-        ).to(self.device, dtype=torch.float16)
+        ).to(self.device, dtype=torch.float32)
         return image_proj_model
 
     def set_ip_adapter(self):
         unet = self.pipe.unet
         attn_procs = {}
+        print(f"KEYS {unet.attn_processors.keys()}")
         for name in unet.attn_processors.keys():
             cross_attention_dim = None if name.endswith("attn1.processor") else unet.config.cross_attention_dim
             if name.startswith("mid_block"):
@@ -84,7 +85,7 @@ class IPAdapter:
                 attn_procs[name] = AttnProcessor()
             else:
                 attn_procs[name] = IPAttnProcessor(hidden_size=hidden_size, cross_attention_dim=cross_attention_dim,
-                scale=1.0).to(self.device, dtype=torch.float16)
+                scale=1.0).to(self.device, dtype=torch.float32)
         unet.set_attn_processor(attn_procs)
 
 
@@ -99,7 +100,7 @@ class IPAdapter:
         if isinstance(pil_image, Image.Image):
             pil_image = [pil_image]
         clip_image = self.clip_image_processor(images=pil_image, return_tensors="pt").pixel_values
-        clip_image_embeds = self.image_encoder(clip_image.to(self.device, dtype=torch.float16)).image_embeds
+        clip_image_embeds = self.image_encoder(clip_image.to(self.device, dtype=torch.float32)).image_embeds
         image_prompt_embeds = self.image_proj_model(clip_image_embeds)
         uncond_image_prompt_embeds = self.image_proj_model(torch.zeros_like(clip_image_embeds))
         return image_prompt_embeds, uncond_image_prompt_embeds
@@ -249,7 +250,7 @@ class IPAdapterPlus(IPAdapter):
             embedding_dim=self.image_encoder.config.hidden_size,
             output_dim=self.pipe.unet.config.cross_attention_dim,
             ff_mult=4
-        ).to(self.device, dtype=torch.float16)
+        ).to(self.device, dtype=torch.float32)
         return image_proj_model
 
     @torch.inference_mode()
@@ -257,7 +258,7 @@ class IPAdapterPlus(IPAdapter):
         if isinstance(pil_image, Image.Image):
             pil_image = [pil_image]
         clip_image = self.clip_image_processor(images=pil_image, return_tensors="pt").pixel_values
-        clip_image = clip_image.to(self.device, dtype=torch.float16)
+        clip_image = clip_image.to(self.device, dtype=torch.float32)
         clip_image_embeds = self.image_encoder(clip_image, output_hidden_states=True).hidden_states[-2]
         logger.debug(f"clip_image_embeds {clip_image_embeds.shape}")
         image_prompt_embeds = self.image_proj_model(clip_image_embeds)
@@ -275,7 +276,7 @@ class IPAdapterPlus(IPAdapter):
         clip_image = rearrange(clip_image, 'b f c h w -> (b f) c h w')
 
         # Process the image as needed
-        clip_image = clip_image.to(self.device, dtype=torch.float16)
+        clip_image = clip_image.to(self.device, dtype=torch.float32)
         clip_image_embeds = self.image_encoder(clip_image, output_hidden_states=True).hidden_states[-2]
         image_prompt_embeds = self.image_proj_model(clip_image_embeds)
 

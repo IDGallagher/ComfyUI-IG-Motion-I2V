@@ -23,6 +23,7 @@ from ..flowgen.pipelines.pipeline_flow_gen import FlowGenPipeline
 from ..animation.pipelines.pipeline_animation import AnimationPipeline
 
 from transformers import CLIPTextModel, CLIPTokenizer
+from torchvision.transforms.functional import to_pil_image
 
 from ..flowgen.models.controlnet import ControlNetModel
 from diffusers import AutoencoderKL, DDIMScheduler
@@ -255,6 +256,8 @@ class MI2V_FlowAnimator:
                 "prompt": ("STRING", {"multiline": True}),
                 "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
                 "first_frame": ("IMAGE",),
+                "ipa_image": ("IMAGE",),
+                "ipa_scale": ("FLOAT", {"default": 1.0}),
                 "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
                 "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
             },
@@ -273,7 +276,7 @@ class MI2V_FlowAnimator:
     """
 
     @torch.inference_mode()
-    def run(self, flow, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
+    def run(self, flow, seed, prompt, negative_prompt, first_frame, ipa_image, ipa_scale, num_inference_steps, guidance_scale, keep_model_loaded=False):
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
@@ -360,6 +363,13 @@ class MI2V_FlowAnimator:
             ),
         ).to(device)
 
+        video_length = flow_samples.shape[0]
+
+        animate_pipeline.load_ip_adapter(scale=ipa_scale)
+        ipa_image = rearrange(ipa_image, 'b h w c -> b c h w')
+        ipa_image = to_pil_image(ipa_image[0])
+        pos_image_embeds, neg_image_embeds = animate_pipeline.ip_adapter.get_image_embeds(ipa_image)
+
         # Run the animation pipeline
         sample = animate_pipeline(
             prompt=prompt,
@@ -371,7 +381,10 @@ class MI2V_FlowAnimator:
             guidance_scale=guidance_scale,
             width=width,
             height=height,
-            video_length=flow_samples.shape[0],  # Number of frames
+            video_length=video_length,  # Number of frames
+            pos_image_embeds=pos_image_embeds,
+            neg_image_embeds=neg_image_embeds,
+            image_embed_frames=[0]
         ).videos
         print(f"sample {sample.shape} w {width} h {height}")
         
