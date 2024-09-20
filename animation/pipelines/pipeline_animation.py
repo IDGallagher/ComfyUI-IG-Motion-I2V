@@ -1,6 +1,7 @@
 # Adapted from https://github.com/showlab/Tune-A-Video/blob/main/tuneavideo/pipelines/pipeline_tuneavideo.py
 
 import inspect
+import os
 from typing import Callable, List, Optional, Union
 from dataclasses import dataclass
 
@@ -25,8 +26,11 @@ from diffusers.schedulers import (
     PNDMScheduler,
 )
 from diffusers.utils import deprecate, logging, BaseOutput
+from ..ip_adapter import IPAdapter, IPAdapterPlus
 
 from einops import rearrange
+
+import folder_paths
 
 from ..models.unet import UNet3DConditionModel
 
@@ -41,7 +45,8 @@ class AnimationPipelineOutput(BaseOutput):
 
 class AnimationPipeline(DiffusionPipeline):
     _optional_components = []
-
+    ip_adapter: IPAdapter = None
+    
     def __init__(
         self,
         vae: AutoencoderKL,
@@ -164,6 +169,23 @@ class AnimationPipeline(DiffusionPipeline):
             ):
                 return torch.device(module._hf_hook.execution_device)
         return self.device
+    
+    def load_ip_adapter(self, is_plus:bool=True, scale:float=1.0):
+        if self.ip_adapter is None:
+            img_enc_path = "data/models/CLIP-ViT-H-14-laion2B-s32B-b79K"
+
+            if is_plus:
+                self.ip_adapter = IPAdapterPlus(self, 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K', os.path.join(folder_paths.models_dir,'ipadapter','ip-adapter-plus_sd15.bin'), self._execution_device, 16)
+            else:
+                assert(False)
+                # self.ip_adapter = IPAdapter(self, img_enc_path, "data/models/IP-Adapter/models/ip-adapter_sd15.bin", self.device, 4)
+            self.ip_adapter.set_scale(scale)
+
+    def unload_ip_adapater(self):
+        if self.ip_adapter:
+            self.ip_adapter.unload()
+            self.ip_adapter = None
+            torch.cuda.empty_cache()
 
     def _encode_prompt(
         self,
@@ -269,6 +291,9 @@ class AnimationPipeline(DiffusionPipeline):
             uncond_embeddings = uncond_embeddings.view(
                 batch_size * num_videos_per_prompt, seq_len, -1
             )
+
+            # HACK IPA
+            
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
@@ -408,6 +433,8 @@ class AnimationPipeline(DiffusionPipeline):
         callback_steps: Optional[int] = 1,
         **kwargs,
     ):
+        self.load_ip_adapter()
+        
         # Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor
         width = width or self.unet.config.sample_size * self.vae_scale_factor
