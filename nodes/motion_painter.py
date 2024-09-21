@@ -11,6 +11,8 @@ import folder_paths
 from server import PromptServer
 from aiohttp import web
 import hashlib
+from ..common.tree import *
+from ..common.constants import *
 
 # Directory node save settings
 CHUNK_SIZE = 1024
@@ -220,7 +222,6 @@ async def wait_canvas_change(unique_id, time_out=40):
 
 # end - Piping image
 
-
 class MI2V_MotionPainter(object):
     @classmethod
     def INPUT_TYPES(cls):
@@ -235,32 +236,38 @@ class MI2V_MotionPainter(object):
 
         return {
             "required": {
-                "images": ("IMAGE",),
-                "image": (sorted(imgs),),
+                "image": ("IMAGE",),
+                # "image": (sorted(imgs),),
+                "arrows": ("STRING", {"multiline": True}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID"
-
             },
             "optional": {
-                "pause": ("BOOLEAN", {"default": False}),
+                "pause_execution": ("BOOLEAN", {"default": False}),
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "VECTOR_DATA")
+    RETURN_TYPES = ("IMAGE", "STRING")
     FUNCTION = "execute"
-    CATEGORY = "Custom Nodes"
+    CATEGORY = TREE_FLOW
 
-    def execute(self, images, image, unique_id, pause):
+    DESCRIPTION = """Draw arrows to describe the desired motion. Pause execution to load in the correctly sized image, add your arrows, then unpause and run again. LEFT DRAG = Place an Arrow, RIGHT CLICK = Remove an Arrow"""
+
+    def __setattr__(self, name, value):
+        print(f"SETTING {name} = {value}")
+        super().__setattr__(name, value)
+
+    def execute(self, image, arrows, unique_id, pause_execution):
         # Piping image input
         if unique_id not in PAINTER_DICT:
             PAINTER_DICT[unique_id] = self
-
-        if images is not None:
+            
+        if image is not None:
 
             input_images = []
 
-            for imgs in images:
+            for imgs in image:
                 i = 255.0 * imgs.cpu().numpy()
                 i = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
                 input_images.append(toBase64ImgUrl(i))
@@ -276,16 +283,16 @@ class MI2V_MotionPainter(object):
                 print(f"MotionPainter_{unique_id}: Image received, canvas changed!")
         # end - Piping image input
         # The actual processing will be handled on the client side.
-        return (images if not pause else ExecutionBlocker(None), None)
+        return (image if not pause_execution else ExecutionBlocker(None), arrows if not pause_execution else ExecutionBlocker(None))
 
     @classmethod
-    def IS_CHANGED(cls, images, image, unique_id):
-        # Use the hash of the image and unique ID to determine if the node has changed.
+    def IS_CHANGED(self, image, arrows, unique_id, paupause_execution):
         m = hashlib.sha256()
         m.update(str(unique_id).encode('utf-8'))
+        m.update(str(arrows).encode('utf-8'))
         # Assuming 'image' is a filepath or an object that can be hashed.
-        if isinstance(images, str) and os.path.isfile(images):
-            with open(images, "rb") as f:
+        if isinstance(image, str) and os.path.isfile(image):
+            with open(image, "rb") as f:
                 m.update(f.read())
         return m.hexdigest()
     
