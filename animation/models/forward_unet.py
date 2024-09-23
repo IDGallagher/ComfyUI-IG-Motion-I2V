@@ -405,9 +405,9 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=self.dtype)
         emb = self.time_embedding(t_emb)
-
+        ones = torch.ones((sample.shape[0],)).to(device=sample.device, dtype=self.dtype)
         one_t_emb = self.time_embedding(
-            self.time_proj(torch.ones((sample.shape[0],)).to(sample.device))
+            self.time_proj(ones).to(dtype=self.dtype)
         )
 
         emb = torch.cat(

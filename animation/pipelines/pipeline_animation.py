@@ -206,7 +206,7 @@ class AnimationPipeline(DiffusionPipeline):
                     os.path.join(folder_paths.models_dir, 'ipadapter', 'ip-adapter-plus_sd15.bin'),
                     device=self._execution_device,
                     num_tokens=16,
-                    dtype=torch.float32
+                    dtype=torch.float16
                 )
             else:
                 assert(False)
@@ -698,7 +698,7 @@ class AnimationPipeline(DiffusionPipeline):
             video_length,
             height,
             width,
-            torch.float32,
+            torch.float16,
             device,
             generator,
             latents,
@@ -707,14 +707,14 @@ class AnimationPipeline(DiffusionPipeline):
 
         latents_dtype = latents.dtype
 
-        flow_pre = flow_pre[None].to(device).repeat(2, 1, 1, 1, 1)
+        flow_pre = flow_pre[None].to(device=device, dtype=torch.float16).repeat(2, 1, 1, 1, 1)
         assert flow_pre is not None
-        first_frame = first_frame[None].to(device)
+        first_frame = first_frame[None].to(device=device, dtype=torch.float16)
 
-        latents_img = self.vae.encode(first_frame.float()).latent_dist
+        latents_img = self.vae.encode(first_frame.half()).latent_dist
         latents_img = latents_img.sample().unsqueeze(2) * 0.18215
 
-        brush_mask = brush_mask.to(device) if brush_mask is not None else None
+        brush_mask = brush_mask.to(device=device, dtype=torch.float16) if brush_mask is not None else None
         brush_mask = (
             F.interpolate(brush_mask, scale_factor=(1, 1 / 8, 1 / 8))
             if brush_mask is not None
@@ -739,14 +739,14 @@ class AnimationPipeline(DiffusionPipeline):
                 # Get the text and image embeds for this context
                 context = list(range(video_length))
                 cur_prompt = get_frame_embeds(context, video_length)
-
+                print(f"Latents dtype {latents_dtype}")
                 # predict the noise residual
                 noise_pred = self.unet(
-                    latent_model_input,
-                    t,
-                    encoder_hidden_states=cur_prompt,
-                    flow_pre=flow_pre,
-                ).sample.to(dtype=latents_dtype)
+                    latent_model_input.to(dtype=torch.float16),
+                    t.half(),
+                    encoder_hidden_states=cur_prompt.to(dtype=torch.float16),
+                    flow_pre=flow_pre.to(dtype=torch.float16),
+                ).sample.to(dtype=torch.float16)
                 # noise_pred = []
                 # import pdb
                 # pdb.set_trace()

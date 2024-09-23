@@ -444,7 +444,7 @@ class FlowGenPipeline(DiffusionPipeline):
             num_videos_per_prompt,
             do_classifier_free_guidance,
             negative_prompt,
-        )
+        ).to(dtype=torch.float16)
 
         # Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
@@ -466,8 +466,8 @@ class FlowGenPipeline(DiffusionPipeline):
         latents_dtype = latents.dtype
         latents = latents[:, :4, ...]
 
-        first_frame = first_frame[None].to(device)
-        latents_img = self.vae_img.encode(first_frame.float()).latent_dist
+        first_frame = first_frame[None].to(device, dtype=latents_dtype)
+        latents_img = self.vae_img.encode(first_frame.half()).latent_dist
         latents_img = latents_img.sample() * 0.18215
         latents_img = rearrange(latents_img, "(b f) c h w -> b c f h w", f=1)
         latents_img = latents_img.repeat(1, 1, video_length, 1, 1)

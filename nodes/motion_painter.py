@@ -285,40 +285,47 @@ class MI2V_MotionPainter(object):
         # The actual processing will be handled on the client side.
         return (image if not pause_execution else ExecutionBlocker(None), arrows if not pause_execution else ExecutionBlocker(None))
 
+    # @classmethod
+    # def IS_CHANGED(self, image, arrows, unique_id, paupause_execution):
+    #     m = hashlib.sha256()
+    #     m.update(str(arrows).encode('utf-8'))
+    #     return m.hexdigest()
+
+class MI2V_PauseNode:
     @classmethod
-    def IS_CHANGED(self, image, arrows, unique_id, paupause_execution):
-        m = hashlib.sha256()
-        m.update(str(unique_id).encode('utf-8'))
-        m.update(str(arrows).encode('utf-8'))
-        # Assuming 'image' is a filepath or an object that can be hashed.
-        if isinstance(image, str) and os.path.isfile(image):
-            with open(image, "rb") as f:
-                m.update(f.read())
-        return m.hexdigest()
-    
-# class MI2V_MotionPainter:
-#     @classmethod
-#     def INPUT_TYPES(cls):
-#         input_dir = folder_paths.get_input_directory()
-#         files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
-#         return {"required":
-#                     {"image": (sorted(files), {"image_upload": True})},
-#                 }
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+            },
+            "optional": {
+                "pause_execution": ("BOOLEAN", {"default": False}),
+            },
+        }
 
-#     RETURN_TYPES = ("IMAGE", "VECTOR_DATA")
-#     FUNCTION = "execute"
-#     CATEGORY = "Custom Nodes"
+    RETURN_TYPES = ("MASK",)  # Outputs the same data type as input
+    FUNCTION = "execute"
+    CATEGORY = TREE_FLOW
 
-#     def execute(self, image):
-#         # The actual processing will be handled on the client side.
-#         return (image, None)
+    DESCRIPTION = """Pause the execution pipeline based on an optional boolean input.
+    - **Data**: Any input data that needs to be passed through or paused.
+    - **Pause Execution**: Set to `True` to pause the pipeline.
+    When `pause_execution` is `True`, the pipeline stops and awaits further instructions.
+    """
 
-#     @classmethod
-#     def IS_CHANGED(cls, image):
-#         # Use the hash of the image and unique ID to determine if the node has changed.
-#         m = hashlib.sha256()
-#         # Assuming 'image' is a filepath or an object that can be hashed.
-#         if isinstance(image, str) and os.path.isfile(image):
-#             with open(image, "rb") as f:
-#                 m.update(f.read())
-#         return m.hexdigest()
+    def execute(self, mask, pause_execution):
+        """
+        Executes the Pause Node logic.
+
+        Args:
+            data: The input data to pass through.
+            pause_execution (bool): Whether to pause the pipeline.
+
+        Returns:
+            tuple: Outputs the data or an ExecutionBlocker.
+        """
+        if pause_execution:
+            return (ExecutionBlocker(None), )
+        else:
+            # Pass the data through unchanged
+            return (mask, )
