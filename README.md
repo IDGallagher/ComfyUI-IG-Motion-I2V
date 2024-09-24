@@ -9,6 +9,8 @@ This is currently a diffusers wrapper with code adapted from [https://github.com
 - [2024/9/20] 🔥 Added basic IP Adapter integration
 - [2024/9/16] 🔥 Uodated model code to be compatible with Comfy's diffusers version
 
+https://github.com/user-attachments/assets/39ce229c-9934-42d8-baeb-37db361f7b11
+
 ## TODO
 - Convert the code to be Comfy Native
 - Reduce VRAM usage
@@ -31,7 +33,7 @@ Here are some example workflows. They can be found along with their input images
   https://github.com/user-attachments/assets/1e35fb84-f246-4725-bfa9-6bfd955a2ee0
 
 
-- **[Using motion as an input into another animation]** Here we use an image of a forest and a prompt of "zoom out" to get a simple video of zooming out motion. This is then input into a second Animate Diff animation to give us complex and controlled motion that would have been difficult to acheive otherwise 
+- **[Using motion as an input into another animation](examples/MI2V-to-ADLCM.json)** Here we use an image of a forest and a prompt of "zoom out" to get a simple video of zooming out motion. This is then input into a second Animate Diff animation to give us complex and controlled motion that would have been difficult to acheive otherwise 
 ![arch](assets/screenshot2.png)
 
   https://github.com/user-attachments/assets/27d51c9c-ecfd-4387-9769-fd7d12ff3e07
