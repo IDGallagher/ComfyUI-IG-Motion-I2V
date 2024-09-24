@@ -16,7 +16,9 @@ This is currently a diffusers wrapper with code adapted from [https://github.com
 - Train longer context models
 
 ## Nodes
-- ***MI2V Flow Predictor*** takes as input a first frame and option motion prompt, mask and vectors. Outputs a predicted optical flow for a 16 frame animation with the input image as the first frame. You can view a preview of the motion where the colors correspond to movement in 2 Dimensions ![colors](assets/colors.jpg)
+- ***MI2V Flow Predictor*** takes as input a first frame and option motion prompt, mask and vectors. Outputs a predicted optical flow for a 16 frame animation with the input image as the first frame. You can view a preview of the motion where the colors correspond to movement in 2 Dimensions
+
+  ![colors](assets/colors.jpg)
 - ***MI2V Flow Animator*** takes the predicted flow and a starting image and generates a 16 frame animation based on these
 - ***MI2V Motion Painter*** allows you to draw motion vectors onto an image to be used by MI2V Flow Predictor
 - ***MI2V Pause*** allows you to pause the execution of the workflow. Useful for loading a resized image into MI2V Flow Predictor or checking you like the predicted motion before committing to further animation
@@ -29,8 +31,11 @@ Here are some example workflows. They can be found along with their input images
   https://github.com/user-attachments/assets/1e35fb84-f246-4725-bfa9-6bfd955a2ee0
 
 
-
+- **[Using motion as an input into another animation]** Here we use an image of a forest and a prompt of "zoom out" to get a simple video of zooming out motion. This is then input into a second Animate Diff animation to give us complex and controlled motion that would have been difficult to acheive otherwise 
 ![arch](assets/screenshot2.png)
+
+  https://github.com/user-attachments/assets/27d51c9c-ecfd-4387-9769-fd7d12ff3e07
+
 
 ## Credits
 - [Motion-I2V: Consistent and Controllable Image-to-Video Generation with Explicit Motion Modeling](https://arxiv.org/abs/2401.15977)
