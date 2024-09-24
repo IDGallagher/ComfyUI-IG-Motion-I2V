@@ -1,0 +1,898 @@
+{
+  "last_node_id": 96,
+  "last_link_id": 193,
+  "nodes": [
+    {
+      "id": 32,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 1800,
+        "1": 280
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 172
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 31,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 2040,
+        "1": 280
+      },
+      "size": [
+        780,
+        800
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 171
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_06130.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 960,
+        "1": 280
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 159
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 13,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 1200,
+        "1": 280
+      },
+      "size": [
+        580,
+        680
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 160
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_06129.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "ImageResizeKJ",
+      "pos": {
+        "0": -460,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 260
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "get_image_size",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "width_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width_input"
+          }
+        },
+        {
+          "name": "height_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height_input"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            58,
+            150,
+            155,
+            185
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "widgets_values": [
+        512,
+        320,
+        "nearest-exact",
+        false,
+        2,
+        0,
+        0,
+        "center"
+      ]
+    },
+    {
+      "id": 38,
+      "type": "EditMask",
+      "pos": {
+        "0": -80,
+        "1": -440
+      },
+      "size": {
+        "0": 520,
+        "1": 400
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            61,
+            189
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EditMask"
+      },
+      "widgets_values": [
+        null
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": {
+        "0": -1100,
+        "1": -240
+      },
+      "size": {
+        "0": 600,
+        "1": 540
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Frame-00320.png",
+        "image"
+      ]
+    },
+    {
+      "id": 95,
+      "type": "MI2V PauseNode",
+      "pos": {
+        "0": 580,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 120
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": 189
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": 188,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            191
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V PauseNode"
+      },
+      "widgets_values": [
+        "",
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 85,
+      "type": "MI2V PauseNode",
+      "pos": {
+        "0": 1460,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 120
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 185
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            186
+          ],
+          "slot_index": 1,
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V PauseNode"
+      },
+      "widgets_values": [
+        false,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 84,
+      "type": "MI2V Flow Predictor",
+      "pos": {
+        "0": 960,
+        "1": -100
+      },
+      "size": {
+        "0": 460,
+        "1": 320
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "link": 155
+        },
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": 191
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": 192,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "flow",
+          "type": "FLOW",
+          "links": [
+            168
+          ],
+          "shape": 3
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": [
+            159,
+            160
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V Flow Predictor"
+      },
+      "widgets_values": [
+        25,
+        12348,
+        "fixed",
+        "A man lowers his binoculars",
+        "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation",
+        25,
+        12,
+        12
+      ]
+    },
+    {
+      "id": 81,
+      "type": "MotionPainter",
+      "pos": {
+        "0": -100,
+        "1": 0
+      },
+      "size": [
+        600,
+        495
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 150
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            188,
+            192
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "title": "MotionPainter - 512x320",
+      "properties": {
+        "Node name for S&R": "MotionPainter"
+      },
+      "widgets_values": [
+        "292.5371479487719,170.66765398388281,267.8937107905298,300.51961425207827\n394.9021946060853,183.9371973689539,372.15440646001565,308.1022104721189",
+        "clear_canvas",
+        null
+      ]
+    },
+    {
+      "id": 96,
+      "type": "LoadImage",
+      "pos": {
+        "0": 1800,
+        "1": -520
+      },
+      "size": [
+        460,
+        340
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            193
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "Frame-00211.png",
+        "image"
+      ]
+    },
+    {
+      "id": 88,
+      "type": "MI2V Flow Animator",
+      "pos": {
+        "0": 1800,
+        "1": -100
+      },
+      "size": {
+        "0": 460,
+        "1": 340
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "flow",
+          "type": "FLOW",
+          "link": 168
+        },
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "link": 186
+        },
+        {
+          "name": "ipa_image",
+          "type": "IMAGE",
+          "link": 193
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            171,
+            172
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V Flow Animator"
+      },
+      "widgets_values": [
+        12345,
+        "fixed",
+        "A man lowers his binoculars",
+        "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation",
+        0.30000000000000004,
+        25,
+        8
+      ]
+    },
+    {
+      "id": 41,
+      "type": "MaskPreview+",
+      "pos": {
+        "0": 460,
+        "1": -440
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 61
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MaskPreview+"
+      }
+    }
+  ],
+  "links": [
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      4,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      61,
+      38,
+      1,
+      41,
+      0,
+      "MASK"
+    ],
+    [
+      150,
+      4,
+      0,
+      81,
+      0,
+      "IMAGE"
+    ],
+    [
+      155,
+      4,
+      0,
+      84,
+      0,
+      "IMAGE"
+    ],
+    [
+      159,
+      84,
+      1,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      160,
+      84,
+      1,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      168,
+      84,
+      0,
+      88,
+      0,
+      "FLOW"
+    ],
+    [
+      171,
+      88,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      172,
+      88,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      185,
+      4,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      186,
+      85,
+      1,
+      88,
+      1,
+      "IMAGE"
+    ],
+    [
+      188,
+      81,
+      1,
+      95,
+      2,
+      "STRING"
+    ],
+    [
+      189,
+      38,
+      1,
+      95,
+      0,
+      "MASK"
+    ],
+    [
+      191,
+      95,
+      0,
+      84,
+      1,
+      "MASK"
+    ],
+    [
+      192,
+      81,
+      1,
+      84,
+      2,
+      "STRING"
+    ],
+    [
+      193,
+      96,
+      0,
+      88,
+      2,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.544500000000002,
+      "offset": [
+        1253.514125384812,
+        947.8616696055997
+      ]
+    },
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ]
+  },
+  "version": 0.4
+}

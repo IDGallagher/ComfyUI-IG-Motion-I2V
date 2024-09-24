@@ -1,0 +1,2172 @@
+{
+  "last_node_id": 95,
+  "last_link_id": 191,
+  "nodes": [
+    {
+      "id": 57,
+      "type": "ADE_MultivalDynamic",
+      "pos": {
+        "0": 3780,
+        "1": 1200
+      },
+      "size": {
+        "0": 220,
+        "1": 60
+      },
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask_optional",
+          "type": "MASK",
+          "link": null,
+          "slot_index": 0
+        },
+        {
+          "name": "float_val",
+          "type": "FLOAT",
+          "link": 95,
+          "widget": {
+            "name": "float_val"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MULTIVAL",
+          "type": "MULTIVAL",
+          "links": [
+            97
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ADE_MultivalDynamic"
+      },
+      "widgets_values": [
+        2,
+        ""
+      ],
+      "shape": 2
+    },
+    {
+      "id": 59,
+      "type": "ADE_LoadAnimateDiffModel",
+      "pos": {
+        "0": 3840,
+        "1": 1040
+      },
+      "size": {
+        "0": 380,
+        "1": 60
+      },
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "ad_settings",
+          "type": "AD_SETTINGS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MOTION_MODEL",
+          "type": "MOTION_MODEL_ADE",
+          "links": [
+            96
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ADE_LoadAnimateDiffModel"
+      },
+      "widgets_values": [
+        "AnimateLCM_sd15_t2v.ckpt"
+      ]
+    },
+    {
+      "id": 32,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 1800,
+        "1": 280
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 172
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 50,
+      "type": "VAEEncode",
+      "pos": {
+        "0": 2700,
+        "1": -80
+      },
+      "size": {
+        "0": 220,
+        "1": 40
+      },
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pixels",
+          "type": "IMAGE",
+          "link": 167
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 104
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            118
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEEncode"
+      }
+    },
+    {
+      "id": 66,
+      "type": "Reroute",
+      "pos": {
+        "0": 3340,
+        "1": -100
+      },
+      "size": [
+        75,
+        26
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "",
+          "type": "*",
+          "link": 187
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "LATENT",
+          "links": [
+            116,
+            117
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "showOutputText": false,
+        "horizontal": false
+      }
+    },
+    {
+      "id": 72,
+      "type": "IPAdapterModelLoader",
+      "pos": {
+        "0": 3640,
+        "1": -40
+      },
+      "size": {
+        "0": 320,
+        "1": 60
+      },
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IPADAPTER",
+          "type": "IPADAPTER",
+          "links": [
+            123
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IPAdapterModelLoader"
+      },
+      "widgets_values": [
+        "ip-adapter-plus_sd15.bin"
+      ]
+    },
+    {
+      "id": 71,
+      "type": "CLIPVisionLoader",
+      "pos": {
+        "0": 3640,
+        "1": -160
+      },
+      "size": {
+        "0": 320,
+        "1": 60
+      },
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP_VISION",
+          "type": "CLIP_VISION",
+          "links": [
+            124
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPVisionLoader"
+      },
+      "widgets_values": [
+        "SD-15-pytorch_model.bin"
+      ]
+    },
+    {
+      "id": 60,
+      "type": "ADE_UseEvolvedSampling",
+      "pos": {
+        "0": 3840,
+        "1": 860
+      },
+      "size": {
+        "0": 400,
+        "1": 120
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 125
+        },
+        {
+          "name": "m_models",
+          "type": "M_MODELS",
+          "link": 98
+        },
+        {
+          "name": "context_options",
+          "type": "CONTEXT_OPTIONS",
+          "link": 99
+        },
+        {
+          "name": "sample_settings",
+          "type": "SAMPLE_SETTINGS",
+          "link": null,
+          "slot_index": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            101
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ADE_UseEvolvedSampling"
+      },
+      "widgets_values": [
+        "lcm >> sqrt_linear"
+      ]
+    },
+    {
+      "id": 58,
+      "type": "ADE_ApplyAnimateDiffModel",
+      "pos": {
+        "0": 4060,
+        "1": 1220
+      },
+      "size": {
+        "0": 320,
+        "1": 200
+      },
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_model",
+          "type": "MOTION_MODEL_ADE",
+          "link": 96
+        },
+        {
+          "name": "motion_lora",
+          "type": "MOTION_LORA",
+          "link": null
+        },
+        {
+          "name": "scale_multival",
+          "type": "MULTIVAL",
+          "link": 97
+        },
+        {
+          "name": "effect_multival",
+          "type": "MULTIVAL",
+          "link": null
+        },
+        {
+          "name": "ad_keyframes",
+          "type": "AD_KEYFRAMES",
+          "link": null
+        },
+        {
+          "name": "prev_m_models",
+          "type": "M_MODELS",
+          "link": null
+        },
+        {
+          "name": "per_block",
+          "type": "PER_BLOCK",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "M_MODELS",
+          "type": "M_MODELS",
+          "links": [
+            98
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ADE_ApplyAnimateDiffModel"
+      },
+      "widgets_values": [
+        0,
+        1,
+        ""
+      ]
+    },
+    {
+      "id": 64,
+      "type": "VAEDecode",
+      "pos": {
+        "0": 4620,
+        "1": -100
+      },
+      "size": {
+        "0": 220,
+        "1": 40
+      },
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 108
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 109
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            110
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      }
+    },
+    {
+      "id": 31,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 2040,
+        "1": 280
+      },
+      "size": [
+        780,
+        800
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 171
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_06105.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 61,
+      "type": "BatchValueScheduleLatentInput",
+      "pos": {
+        "0": 3400,
+        "1": 1180
+      },
+      "size": {
+        "0": 360,
+        "1": 140
+      },
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "num_latents",
+          "type": "LATENT",
+          "link": 117
+        }
+      ],
+      "outputs": [
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": [
+            95
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": null,
+          "slot_index": 1,
+          "shape": 3
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "BatchValueScheduleLatentInput"
+      },
+      "widgets_values": [
+        "0:(1.2)",
+        true
+      ]
+    },
+    {
+      "id": 56,
+      "type": "ADE_AnimateDiffUniformContextOptions",
+      "pos": {
+        "0": 3440,
+        "1": 760
+      },
+      "size": {
+        "0": 320,
+        "1": 360
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "prev_context",
+          "type": "CONTEXT_OPTIONS",
+          "link": null
+        },
+        {
+          "name": "view_opts",
+          "type": "VIEW_OPTS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONTEXT_OPTIONS",
+          "type": "CONTEXT_OPTIONS",
+          "links": [
+            99
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ADE_AnimateDiffUniformContextOptions"
+      },
+      "widgets_values": [
+        16,
+        1,
+        4,
+        "uniform",
+        true,
+        "flat",
+        false,
+        0,
+        1,
+        ""
+      ]
+    },
+    {
+      "id": 90,
+      "type": "LoadImage",
+      "pos": {
+        "0": 3640,
+        "1": -560
+      },
+      "size": [
+        320,
+        320
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            181
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "4123dca1-edb6-45ad-b450-40b994dbdfbb.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "PreviewImage",
+      "pos": {
+        "0": 960,
+        "1": 280
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 159
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "PreviewImage"
+      }
+    },
+    {
+      "id": 13,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 1200,
+        "1": 280
+      },
+      "size": [
+        580,
+        680
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 160
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_06104.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 91,
+      "type": "EmptyLatentImage",
+      "pos": {
+        "0": 2920,
+        "1": -340
+      },
+      "size": {
+        "0": 320,
+        "1": 100
+      },
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        760,
+        480,
+        16
+      ]
+    },
+    {
+      "id": 67,
+      "type": "LatentUpscale",
+      "pos": {
+        "0": 2940,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 140
+      },
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 118
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            187
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LatentUpscale"
+      },
+      "widgets_values": [
+        "nearest-exact",
+        760,
+        480,
+        "disabled"
+      ]
+    },
+    {
+      "id": 95,
+      "type": "MI2V PauseNode",
+      "pos": {
+        "0": 580,
+        "1": -100
+      },
+      "size": [
+        320,
+        120
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": 189
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": 188,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [
+            191
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            190
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V PauseNode"
+      },
+      "widgets_values": [
+        "",
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 81,
+      "type": "MotionPainter",
+      "pos": {
+        "0": -100,
+        "1": 0
+      },
+      "size": [
+        600,
+        495
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 150
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            188
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "title": "MotionPainter - 512x320",
+      "properties": {
+        "Node name for S&R": "MotionPainter"
+      },
+      "widgets_values": [
+        "",
+        "clear_canvas",
+        null
+      ]
+    },
+    {
+      "id": 41,
+      "type": "MaskPreview+",
+      "pos": {
+        "0": 440,
+        "1": -440
+      },
+      "size": [
+        220,
+        240
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "mask",
+          "type": "MASK",
+          "link": 61
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "MaskPreview+"
+      }
+    },
+    {
+      "id": 4,
+      "type": "ImageResizeKJ",
+      "pos": {
+        "0": -460,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 260
+      },
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 3
+        },
+        {
+          "name": "get_image_size",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "width_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "width_input"
+          }
+        },
+        {
+          "name": "height_input",
+          "type": "INT",
+          "link": null,
+          "widget": {
+            "name": "height_input"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            58,
+            150,
+            155,
+            170,
+            185
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageResizeKJ"
+      },
+      "widgets_values": [
+        512,
+        320,
+        "nearest-exact",
+        false,
+        2,
+        0,
+        0,
+        "center"
+      ]
+    },
+    {
+      "id": 89,
+      "type": "LoraLoader",
+      "pos": {
+        "0": 2680,
+        "1": 80
+      },
+      "size": {
+        "0": 320,
+        "1": 120
+      },
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 176
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 177
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            180
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            178,
+            179
+          ],
+          "shape": 3,
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "lcm-SD15-pytorch_lora_weights.safetensors",
+        1,
+        1
+      ]
+    },
+    {
+      "id": 63,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 3020,
+        "1": 340
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 178
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            106
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": {
+        "0": -1100,
+        "1": -240
+      },
+      "size": [
+        600,
+        540
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            3
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "forest-4-e1483856441969.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 88,
+      "type": "MI2V Flow Animator",
+      "pos": {
+        "0": 1800,
+        "1": -100
+      },
+      "size": {
+        "0": 460,
+        "1": 340
+      },
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "flow",
+          "type": "FLOW",
+          "link": 168
+        },
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "link": 186
+        },
+        {
+          "name": "ipa_image",
+          "type": "IMAGE",
+          "link": 170
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [
+            171,
+            172,
+            173
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V Flow Animator"
+      },
+      "widgets_values": [
+        12345,
+        "fixed",
+        "A forest",
+        "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation",
+        0,
+        25,
+        8
+      ]
+    },
+    {
+      "id": 62,
+      "type": "CLIPTextEncode",
+      "pos": {
+        "0": 3020,
+        "1": 80
+      },
+      "size": {
+        "0": 400,
+        "1": 200
+      },
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 179
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            107
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "A rally car racing around a corner"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 38,
+      "type": "EditMask",
+      "pos": {
+        "0": -80,
+        "1": -440
+      },
+      "size": {
+        "0": 520,
+        "1": 400
+      },
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 58
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "mask",
+          "type": "MASK",
+          "links": [
+            61,
+            189
+          ],
+          "slot_index": 1,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "EditMask"
+      },
+      "widgets_values": [
+        null
+      ]
+    },
+    {
+      "id": 84,
+      "type": "MI2V Flow Predictor",
+      "pos": {
+        "0": 960,
+        "1": -100
+      },
+      "size": [
+        460,
+        320
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "link": 155
+        },
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": 191
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": 190,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "flow",
+          "type": "FLOW",
+          "links": [
+            168
+          ],
+          "shape": 3
+        },
+        {
+          "name": "preview",
+          "type": "IMAGE",
+          "links": [
+            159,
+            160
+          ],
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V Flow Predictor"
+      },
+      "widgets_values": [
+        25,
+        12348,
+        "fixed",
+        "A forest. zoom out",
+        "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation",
+        25,
+        12,
+        12
+      ]
+    },
+    {
+      "id": 49,
+      "type": "VHS_VideoCombine",
+      "pos": {
+        "0": 4860,
+        "1": -100
+      },
+      "size": [
+        960,
+        920
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 110
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "meta_batch",
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VHS_VideoCombine"
+      },
+      "widgets_values": {
+        "frame_rate": 8,
+        "loop_count": 0,
+        "filename_prefix": "AnimateDiff",
+        "format": "video/h264-mp4",
+        "pix_fmt": "yuv420p",
+        "crf": 19,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "AnimateDiff_06115.mp4",
+            "subfolder": "",
+            "type": "output",
+            "format": "video/h264-mp4",
+            "frame_rate": 8
+          },
+          "muted": false
+        }
+      }
+    },
+    {
+      "id": 85,
+      "type": "MI2V PauseNode",
+      "pos": {
+        "0": 1460,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 120
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 185
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            186
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V PauseNode"
+      },
+      "widgets_values": [
+        false,
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 70,
+      "type": "IPAdapterTiled",
+      "pos": {
+        "0": 3640,
+        "1": 80
+      },
+      "size": {
+        "0": 320,
+        "1": 300
+      },
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 180
+        },
+        {
+          "name": "ipadapter",
+          "type": "IPADAPTER",
+          "link": 123
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 181
+        },
+        {
+          "name": "image_negative",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "attn_mask",
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "clip_vision",
+          "type": "CLIP_VISION",
+          "link": 124
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            125
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "tiles",
+          "type": "IMAGE",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "masks",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "IPAdapterTiled"
+      },
+      "widgets_values": [
+        0.5,
+        "strong middle",
+        "concat",
+        0,
+        1,
+        0,
+        "K+mean(V) w/ C penalty"
+      ]
+    },
+    {
+      "id": 55,
+      "type": "KSamplerAdvanced",
+      "pos": {
+        "0": 4260,
+        "1": -100
+      },
+      "size": [
+        320,
+        540
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 101
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 107
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 106
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 116
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            108
+          ],
+          "slot_index": 0,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerAdvanced"
+      },
+      "widgets_values": [
+        "enable",
+        13,
+        "fixed",
+        25,
+        1,
+        "lcm",
+        "sgm_uniform",
+        8,
+        10000,
+        "disable"
+      ]
+    },
+    {
+      "id": 86,
+      "type": "MI2V PauseNode",
+      "pos": {
+        "0": 2320,
+        "1": -100
+      },
+      "size": {
+        "0": 320,
+        "1": 120
+      },
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_mask",
+          "type": "MASK",
+          "link": null
+        },
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 173
+        },
+        {
+          "name": "motion_vectors",
+          "type": "STRING",
+          "link": null,
+          "widget": {
+            "name": "motion_vectors"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null,
+          "shape": 3
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            167
+          ],
+          "slot_index": 1,
+          "shape": 3
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MI2V PauseNode"
+      },
+      "widgets_values": [
+        "",
+        false
+      ],
+      "color": "#233",
+      "bgcolor": "#355"
+    },
+    {
+      "id": 54,
+      "type": "CheckpointLoaderSimple",
+      "pos": {
+        "0": 2320,
+        "1": 80
+      },
+      "size": {
+        "0": 320,
+        "1": 100
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            176
+          ],
+          "slot_index": 0,
+          "shape": 3
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            177
+          ],
+          "slot_index": 1,
+          "shape": 3
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            104,
+            109
+          ],
+          "slot_index": 2,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "realisticVisionV60B1_v51VAE.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      58,
+      4,
+      0,
+      38,
+      0,
+      "IMAGE"
+    ],
+    [
+      61,
+      38,
+      1,
+      41,
+      0,
+      "MASK"
+    ],
+    [
+      95,
+      61,
+      0,
+      57,
+      1,
+      "FLOAT"
+    ],
+    [
+      96,
+      59,
+      0,
+      58,
+      0,
+      "MOTION_MODEL_ADE"
+    ],
+    [
+      97,
+      57,
+      0,
+      58,
+      2,
+      "MULTIVAL"
+    ],
+    [
+      98,
+      58,
+      0,
+      60,
+      1,
+      "M_MODELS"
+    ],
+    [
+      99,
+      56,
+      0,
+      60,
+      2,
+      "CONTEXT_OPTIONS"
+    ],
+    [
+      101,
+      60,
+      0,
+      55,
+      0,
+      "MODEL"
+    ],
+    [
+      104,
+      54,
+      2,
+      50,
+      1,
+      "VAE"
+    ],
+    [
+      106,
+      63,
+      0,
+      55,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      107,
+      62,
+      0,
+      55,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      108,
+      55,
+      0,
+      64,
+      0,
+      "LATENT"
+    ],
+    [
+      109,
+      54,
+      2,
+      64,
+      1,
+      "VAE"
+    ],
+    [
+      110,
+      64,
+      0,
+      49,
+      0,
+      "IMAGE"
+    ],
+    [
+      116,
+      66,
+      0,
+      55,
+      3,
+      "LATENT"
+    ],
+    [
+      117,
+      66,
+      0,
+      61,
+      0,
+      "LATENT"
+    ],
+    [
+      118,
+      50,
+      0,
+      67,
+      0,
+      "LATENT"
+    ],
+    [
+      123,
+      72,
+      0,
+      70,
+      1,
+      "IPADAPTER"
+    ],
+    [
+      124,
+      71,
+      0,
+      70,
+      5,
+      "CLIP_VISION"
+    ],
+    [
+      125,
+      70,
+      0,
+      60,
+      0,
+      "MODEL"
+    ],
+    [
+      150,
+      4,
+      0,
+      81,
+      0,
+      "IMAGE"
+    ],
+    [
+      155,
+      4,
+      0,
+      84,
+      0,
+      "IMAGE"
+    ],
+    [
+      159,
+      84,
+      1,
+      10,
+      0,
+      "IMAGE"
+    ],
+    [
+      160,
+      84,
+      1,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      167,
+      86,
+      1,
+      50,
+      0,
+      "IMAGE"
+    ],
+    [
+      168,
+      84,
+      0,
+      88,
+      0,
+      "FLOW"
+    ],
+    [
+      170,
+      4,
+      0,
+      88,
+      2,
+      "IMAGE"
+    ],
+    [
+      171,
+      88,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      172,
+      88,
+      0,
+      32,
+      0,
+      "IMAGE"
+    ],
+    [
+      173,
+      88,
+      0,
+      86,
+      1,
+      "IMAGE"
+    ],
+    [
+      176,
+      54,
+      0,
+      89,
+      0,
+      "MODEL"
+    ],
+    [
+      177,
+      54,
+      1,
+      89,
+      1,
+      "CLIP"
+    ],
+    [
+      178,
+      89,
+      1,
+      63,
+      0,
+      "CLIP"
+    ],
+    [
+      179,
+      89,
+      1,
+      62,
+      0,
+      "CLIP"
+    ],
+    [
+      180,
+      89,
+      0,
+      70,
+      0,
+      "MODEL"
+    ],
+    [
+      181,
+      90,
+      0,
+      70,
+      2,
+      "IMAGE"
+    ],
+    [
+      185,
+      4,
+      0,
+      85,
+      1,
+      "IMAGE"
+    ],
+    [
+      186,
+      85,
+      1,
+      88,
+      1,
+      "IMAGE"
+    ],
+    [
+      187,
+      67,
+      0,
+      66,
+      0,
+      "*"
+    ],
+    [
+      188,
+      81,
+      1,
+      95,
+      2,
+      "STRING"
+    ],
+    [
+      189,
+      38,
+      1,
+      95,
+      0,
+      "MASK"
+    ],
+    [
+      190,
+      95,
+      2,
+      84,
+      2,
+      "STRING"
+    ],
+    [
+      191,
+      95,
+      0,
+      84,
+      1,
+      "MASK"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.45000000000001245,
+      "offset": [
+        -625.1871882833337,
+        816.8252016664387
+      ]
+    },
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ]
+  },
+  "version": 0.4
+}
