@@ -15,6 +15,12 @@ This is currently a diffusers wrapper with code adapted from [https://github.com
 - More motion controls
 - Train longer context models
 
+## Nodes
+- ***MI2V Flow Predictor*** takes as input a first frame and option motion prompt, mask and vectors. Outputs a predicted optical flow for a 16 frame animation with the input image as the first frame. You can view a preview of the motion where the colors correspond to movement in 2 Dimensions ![colors](assets/colors.jpg)
+- ***MI2V Flow Animator*** takes the predicted flow and a starting image and generates a 16 frame animation based on these
+- ***MI2V Motion Painter*** allows you to draw motion vectors onto an image to be used by MI2V Flow Predictor
+- ***MI2V Pause*** allows you to pause the execution of the workflow. Useful for loading a resized image into MI2V Flow Predictor or checking you like the predicted motion before committing to further animation
+
 ## Instructions
 ![arch](assets/screenshot1.png)
 ![arch](assets/screenshot2.png)
