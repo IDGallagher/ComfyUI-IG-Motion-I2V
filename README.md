@@ -9,8 +9,6 @@ This is currently a diffusers wrapper with code adapted from [https://github.com
 - [2024/9/20] 🔥 Added basic IP Adapter integration
 - [2024/9/16] 🔥 Uodated model code to be compatible with Comfy's diffusers version
 
-https://github.com/user-attachments/assets/39ce229c-9934-42d8-baeb-37db361f7b11
-
 ## TODO
 - Convert the code to be Comfy Native
 - Reduce VRAM usage
@@ -37,6 +35,13 @@ Here are some example workflows. They can be found along with their input images
 ![arch](assets/screenshot2.png)
 
   https://github.com/user-attachments/assets/27d51c9c-ecfd-4387-9769-fd7d12ff3e07
+
+
+## More Videos
+https://github.com/user-attachments/assets/fc0e7c3e-3788-49da-9564-e2f40bb69d98
+
+
+https://github.com/user-attachments/assets/392a3dcb-8989-4e89-b3f4-c9836efe794a
 
 
 ## Credits
