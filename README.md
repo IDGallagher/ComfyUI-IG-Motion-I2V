@@ -22,7 +22,14 @@ This is currently a diffusers wrapper with code adapted from [https://github.com
 - ***MI2V Pause*** allows you to pause the execution of the workflow. Useful for loading a resized image into MI2V Flow Predictor or checking you like the predicted motion before committing to further animation
 
 ## Instructions
+Here are some example workflows. They can be found along with their input images [here](examples):
+- **[Motion Painter](examples/MI2V-Painter.json)** Here we use motion painting to instruct the binoculars to be lowered. This causes the man's face to be shown, however the model doesn't know what this face should look like as it wasn't in the initial image. To help, we give it a second image of the man's face via a simple IP Adapter (Once the nodes are ComfyUI native this will work even better if we use Tiled IP Adapter)
 ![arch](assets/screenshot1.png)
+
+  https://github.com/user-attachments/assets/1e35fb84-f246-4725-bfa9-6bfd955a2ee0
+
+
+
 ![arch](assets/screenshot2.png)
 
 ## Credits
