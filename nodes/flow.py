@@ -1,6 +1,8 @@
 import os
 from einops import rearrange
+import numpy as np
 import torch
+from torch.nn import functional as F
 import json
 import torchvision.transforms as transforms
 
@@ -23,6 +25,9 @@ from ..flowgen.pipelines.pipeline_flow_gen import FlowGenPipeline
 from ..animation.pipelines.pipeline_animation import AnimationPipeline
 
 from transformers import CLIPTextModel, CLIPTokenizer
+from torchvision.transforms.functional import to_pil_image
+
+from scipy.interpolate import PchipInterpolator
 
 from ..flowgen.models.controlnet import ControlNetModel
 from diffusers import AutoencoderKL, DDIMScheduler
@@ -36,35 +41,57 @@ from ..animation.utils.convert_from_ckpt import (
     convert_ldm_vae_checkpoint,
 )
 
-class MI2V_FlowModelLoader:
+def interpolate_trajectory(points, n_points):
+    x = [point[0] for point in points]
+    y = [point[1] for point in points]
+
+    t = np.linspace(0, 1, len(points))
+
+    # fx = interp1d(t, x, kind='cubic')
+    # fy = interp1d(t, y, kind='cubic')
+    fx = PchipInterpolator(t, x)
+    fy = PchipInterpolator(t, y)
+
+    new_t = np.linspace(0, 1, n_points)
+
+    new_x = fx(new_t)
+    new_y = fy(new_t)
+    new_points = list(zip(new_x, new_y))
+
+    return new_points
+
+class MI2V_FlowPredictor:
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {            
-            "model": (
-            ['Motion-I2V',], 
-            {
-                "default": 'Motion-I2V'
-            }),
+        return {
+            "required": {
+                # "flow_model": ("FLOWMODEL",),
+                # "frames": ("INT", {"default": 16}),
+                "flow_unit_id": ("INT", {"default": 5}),
+                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
+                "first_frame": ("IMAGE",),
+                "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
+                "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
             },
-            }
-    
-    RETURN_TYPES = ("FLOWMODEL",)
-    RETURN_NAMES =("flow_model",)
-    FUNCTION = "load"
+            "optional": {
+                "motion_vectors": ("STRING", {"default": "", "forceInput": True}),
+                "motion_mask": ("MASK", {"default": None, "forceInput": True}),
+                }
+        }
+
+    RETURN_TYPES = ("FLOW","IMAGE",)
+    RETURN_NAMES = ("flow","preview",)
+    FUNCTION = "run"
     CATEGORY = TREE_FLOW
 
-    DESCRIPTION = """
-    Diffusion-based flow estimation used for Motion-I2V:
-    https://github.com/G-U-N/Motion-I2V
-    
-    Models are automatically downloaded to  
-    ComfyUI/models/diffusers -folder
-    """
     @torch.inference_mode()
-    def load(self, model):
-        
+    def run(self, flow_unit_id, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, motion_vectors="", motion_mask=None, keep_model_loaded=False):
+
+        torch.backends.cuda.matmul.allow_tf32 = True
         diffusers_model_path = os.path.join(folder_paths.models_dir, "diffusers")
-        checkpoint_path = os.path.join(diffusers_model_path, model)
+        checkpoint_path = os.path.join(diffusers_model_path, 'Motion-I2V')
         config_path = os.path.join(os.path.dirname(__file__), "..","configs")
 
         device = model_management.get_torch_device()
@@ -90,12 +117,18 @@ class MI2V_FlowModelLoader:
             unet_additional_kwargs=OmegaConf.to_container(
                 inference_config.unet_additional_kwargs
             ),
-        )
-        vae_img = AutoencoderKL.from_pretrained(stage2_path, subfolder="vae", use_safetensors=False)
+        ).to(dtype=torch.float16)
+        
+        if is_xformers_available():
+            unet.enable_xformers_memory_efficient_attention()
+        else:
+            assert False
+        
+        vae_img = AutoencoderKL.from_pretrained(stage2_path, subfolder="vae", use_safetensors=False).to(dtype=torch.float16)
         
         with open(os.path.join(stage1_path, "vae","config.json"), "r") as f:
             vae_config = json.load(f)
-        vae = AutoencoderKL.from_config(vae_config)
+        vae = AutoencoderKL.from_config(vae_config).to(dtype=torch.float16)
         vae_pretrained_path = (os.path.join(stage1_path, "vae_flow","diffusion_pytorch_model.bin"))
         
         print("[Load vae weights from {}]".format(vae_pretrained_path))
@@ -119,12 +152,8 @@ class MI2V_FlowModelLoader:
         # print_loading_issues(m, u)
         
         print("finish loading")
-        if is_xformers_available():
-            unet.enable_xformers_memory_efficient_attention()
-        else:
-            assert False
-        
-        self.flow_pipeline = FlowGenPipeline(
+       
+        flow_pipeline = FlowGenPipeline(
             vae_img=vae_img,
             vae_flow=vae,
             text_encoder=text_encoder,
@@ -133,47 +162,19 @@ class MI2V_FlowModelLoader:
             scheduler=DDIMScheduler(
                 **OmegaConf.to_container(inference_config.noise_scheduler_kwargs)
             ),
-        ).to(device)
+        ).to(device=device, dtype=torch.float16)
 
-        flow_model = {
-            "flow_pipeline": self.flow_pipeline,
-        }
-        return (flow_model,)
-
-class MI2V_FlowPredictor:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "flow_model": ("FLOWMODEL",),
-                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
-                "prompt": ("STRING", {"multiline": True}),
-                "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
-                "first_frame": ("IMAGE",),
-                "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
-                "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
-            },
-            "optional": {
-                "keep_model_loaded": ("BOOLEAN", {"default": False}),
-                }
-        }
-
-    RETURN_TYPES = ("FLOW","IMAGE",)
-    RETURN_NAMES = ("flow","preview",)
-    FUNCTION = "run"
-    CATEGORY = TREE_FLOW
-
-    @torch.inference_mode()
-    def run(self, flow_model, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
-        flow_pipeline = flow_model['flow_pipeline']
-
+        # flow_pipeline = flow_model['flow_pipeline']
+        frames = 16
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
         torch.manual_seed(seed)
 
         # The first_frame is already a tensor with batch dimension in ComfyUI
-        first_frame_tensor = first_frame.to(device)
+        first_frame_tensor = first_frame.to(device, dtype=torch.float16)
+        # stride = list(range(8, 121, 8))
+        stride = list(range(8, 8 * frames, 8))
 
         # Confirm the tensor shape
         print(f"Input tensor shape before permute: {first_frame_tensor.shape}")
@@ -187,21 +188,168 @@ class MI2V_FlowPredictor:
             first_frame_tensor = first_frame_tensor[:, :3, :, :]
 
         # Get height and width
-        height, width = first_frame_tensor.shape[2], first_frame_tensor.shape[3]
+        original_height, original_width = first_frame_tensor.shape[2], first_frame_tensor.shape[3]
+        print(f"Original image size: width={original_width}, height={original_height}")
 
         # Ensure height and width are divisible by 8
-        height = (height // 8) * 8
-        width = (width // 8) * 8
+        height = (original_height // 8) * 8
+        width = (original_width // 8) * 8
+        print(f"Adjusted image size: width={width}, height={height}")
+
         first_frame_tensor = torch.nn.functional.interpolate(
             first_frame_tensor, size=(height, width), mode='bilinear', align_corners=False
         )
 
         # Normalize the tensor to [-1, 1] range
         first_frame_tensor = first_frame_tensor * 2 - 1  # Assuming input is in [0, 1]
-        stride = list(range(8, 121, 8))
 
-        flow_pipeline.to(device)
+        flow_pipeline.to(device, dtype=torch.float16)
 
+        if motion_mask is not None:
+            brush_mask = motion_mask.to(device=device, dtype=torch.float16).float()
+        else:
+            brush_mask = torch.zeros((height, width), device=device, dtype=torch.float16)
+
+        print(f"brush mask 1 {brush_mask.shape}")
+        
+        # Thresholding: Convert brush_mask to binary (0 and 1) in-place
+        brush_mask = (brush_mask <= 0.5).float()
+
+        # Conditional Zeroing
+        if torch.all(brush_mask == 1):
+            brush_mask.zero_()
+
+        # Resize the mask to match the adjusted image dimensions if necessary
+        if height != original_height or width != original_width:
+            brush_mask = torch.nn.functional.interpolate(
+                brush_mask.unsqueeze(0), size=(height, width), mode='nearest'
+            ).squeeze(0)
+
+        # Add batch and channel dimensions
+        brush_mask = brush_mask.unsqueeze(-1)  # Shape: [1, height, width, 1]
+
+        print(f"brush mask 2 {brush_mask.shape}")
+
+        model_length = frames  # Set according to your model's requirements
+        input_drag = torch.zeros(model_length - 1, height, width, 2, device=device, dtype=torch.float16)
+        mask_drag = torch.zeros(model_length - 1, height, width, 1, device=device, dtype=torch.float16)
+        brush_mask = brush_mask.expand_as(mask_drag)
+
+        all_tracking_points = []
+        for line in motion_vectors.split('\n'):
+            if line.strip():  # Skip empty lines
+                values = [float(x) for x in line.strip().split(',')]
+                tracking_points = [(values[0], values[1]), (values[2], values[3])]
+                all_tracking_points.append(tracking_points)
+        print(f"POINTS {all_tracking_points}")
+        resized_all_points = [
+            tuple(
+                [
+                    tuple(
+                        [
+                            int(e1[0] * width / original_width),
+                            int(e1[1] * height / original_height),
+                        ]
+                    )
+                    for e1 in e
+                ]
+            )
+            for e in all_tracking_points
+        ]
+        print(f"RESIZED POINTS {resized_all_points}")
+        # Process each tracking path
+        for splited_track in resized_all_points:
+
+            if len(splited_track) == 1:  # stationary point
+                displacement_point = tuple(
+                    [splited_track[0][0] + 1, splited_track[0][1] + 1]
+                )
+                splited_track = tuple([splited_track[0], displacement_point])
+
+            # Interpolate the track
+            splited_track = interpolate_trajectory(splited_track, model_length)
+            splited_track = splited_track[:model_length]
+            if len(splited_track) < model_length:
+                splited_track = splited_track + [splited_track[-1]] * (
+                    model_length - len(splited_track)
+                )
+            for i in range(model_length - 1):
+                start_point = splited_track[0]
+                end_point = splited_track[i + 1]
+                input_drag[
+                    i,
+                    max(int(start_point[1]) - flow_unit_id, 0) : int(start_point[1])
+                    + flow_unit_id,
+                    max(int(start_point[0]) - flow_unit_id, 0) : int(
+                        start_point[0] + flow_unit_id
+                    ),
+                    0,
+                ] = (
+                    end_point[0] - start_point[0]
+                )
+                input_drag[
+                    i,
+                    max(int(start_point[1]) - flow_unit_id, 0) : int(start_point[1])
+                    + flow_unit_id,
+                    max(int(start_point[0]) - flow_unit_id, 0) : int(
+                        start_point[0] + flow_unit_id
+                    ),
+                    1,
+                ] = (
+                    end_point[1] - start_point[1]
+                )
+                mask_drag[
+                    i,
+                    max(int(start_point[1]) - flow_unit_id, 0) : int(start_point[1])
+                    + flow_unit_id,
+                    max(int(start_point[0]) - flow_unit_id, 0) : int(
+                        start_point[0] + flow_unit_id
+                    ),
+                ] = 1
+
+        # Normalize displacements
+        input_drag[..., 0] /= width
+        input_drag[..., 1] /= height
+
+        # Adjust drag inputs and masks based on the brush mask
+        print(f"input drag shape: {input_drag.shape}")
+        print(f"brush mask shape: {brush_mask.shape}")
+        # print(f"input drag: {input_drag}")
+        input_drag = torch.where(brush_mask > 0, 0, input_drag)
+        # print(f"input drag: {input_drag}")
+        mask_drag = torch.where(brush_mask > 0, 0, mask_drag)
+        
+        input_drag = (input_drag + 1) / 2
+
+        f = model_length - 1
+        # drag = torch.cat([torch.zeros_like(drag[:, 0]).unsqueeze(1), drag], dim=1)  # pad the first frame with zero flow
+        drag = rearrange(input_drag, "(b f) h w c -> b c f h w",f=f)
+        mask = rearrange(mask_drag, "(b f) h w c -> b c f h w",f=f)
+        brush_mask = rearrange(brush_mask, "(b f) h w c -> b c f h w",f=f)
+
+        sparse_flow = drag
+        sparse_mask = mask
+
+        sparse_flow = (sparse_flow - 1 / 2) * sparse_mask + 1 / 2
+
+        # sparse_flow = torch.full_like(sparse_flow, 0.5)
+        # sparse_mask = torch.full_like(sparse_mask, 0.0)
+
+        flow_mask_latent = rearrange(
+            flow_pipeline.vae_flow.encode(rearrange(sparse_flow, "b c f h w -> (b f) c h w")).latent_dist.sample(),
+            "(b f) c h w -> b c f h w",
+            f=f,
+        )
+       
+        # # flow_mask_latent = vae.encode(sparse_flow).latent_dist.sample()*0.18215
+        sparse_mask = F.interpolate(sparse_mask, scale_factor=(1, 1 / 8, 1 / 8))
+        # flow_mask_latent = torch.full_like(flow_mask_latent, 0.0)
+
+        print(f"flow_mask_latent {flow_mask_latent.shape}")
+        print(f"sparse_mask {sparse_mask.shape}")
+        control = torch.cat([flow_mask_latent, sparse_mask], dim=1)
+
+        torch.manual_seed(seed)
         # Run the flow pipeline
         flow_tensor = flow_pipeline(
             prompt=prompt,
@@ -212,15 +360,14 @@ class MI2V_FlowPredictor:
             negative_prompt=negative_prompt,
             height=height,
             width=width,
-            stride=torch.tensor([stride]).to(device),
-            control=None,
+            stride=torch.tensor([stride]).to(device, dtype=torch.float16),
+            control=control if flow_unit_id > 0 else None,
             return_dict=False,
         )
         print(f"Flow tensor shape: {flow_tensor.shape}")
 
-        if not keep_model_loaded:
-            flow_pipeline.to(offload_device)
-            model_management.soft_empty_cache()
+        flow_pipeline.to(offload_device)
+        model_management.soft_empty_cache()
         # Extract the generated frames
         # videos_tensor = output['videos'][0]  # Assuming batch_size = 1
 
@@ -229,7 +376,7 @@ class MI2V_FlowPredictor:
         # images_tensor = torch.clamp(images_tensor, 0, 1)
 
         flow_tensor = (flow_tensor * 2 - 1).clamp(-1, 1)
-        # # sample = sample * (1 - brush_mask.to(sample.device))
+        flow_tensor = flow_tensor * (1 - brush_mask.to(flow_tensor.device))
         
         # Create image preview of flow tensor
         flow_preview = rearrange(flow_tensor, 'b c f h w -> (b f) h w c')
@@ -255,11 +402,10 @@ class MI2V_FlowAnimator:
                 "prompt": ("STRING", {"multiline": True}),
                 "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
                 "first_frame": ("IMAGE",),
+                "ipa_image": ("IMAGE",),
+                "ipa_scale": ("FLOAT", {"default": 1.0}),
                 "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
                 "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
-            },
-            "optional": {
-                "keep_model_loaded": ("BOOLEAN", {"default": False}),
             }
         }
 
@@ -273,7 +419,7 @@ class MI2V_FlowAnimator:
     """
 
     @torch.inference_mode()
-    def run(self, flow, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, keep_model_loaded=False):
+    def run(self, flow, seed, prompt, negative_prompt, first_frame, ipa_image, ipa_scale, num_inference_steps, guidance_scale, keep_model_loaded=False):
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
@@ -313,14 +459,14 @@ class MI2V_FlowAnimator:
 
         tokenizer = CLIPTokenizer.from_pretrained(stage2_path, subfolder="tokenizer")
         text_encoder = CLIPTextModel.from_pretrained(stage2_path, subfolder="text_encoder")
-        vae = AutoencoderKL.from_pretrained(stage2_path, subfolder="vae")
+        vae = AutoencoderKL.from_pretrained(stage2_path, subfolder="vae").to(dtype=torch.float16)
         unet = UNet3DConditionModel.from_pretrained_2d(
             stage2_path,
             subfolder="unet",
             unet_additional_kwargs=OmegaConf.to_container(
                 inference_config.unet_additional_kwargs
             ),
-        )
+        ).to(dtype=torch.float16)
 
         # Load motion module
         motion_module_path = os.path.join(checkpoint_path, "models", "stage2", "Motion_Module", "motion_block.bin")
@@ -351,35 +497,45 @@ class MI2V_FlowAnimator:
             assert False
 
         animate_pipeline = AnimationPipeline(
-            vae=vae,
+            vae=vae.to(dtype=torch.float16),
             text_encoder=text_encoder,
             tokenizer=tokenizer,
-            unet=unet,
+            unet=unet.to(dtype=torch.float16),
             scheduler=DDIMScheduler(
                 **OmegaConf.to_container(inference_config.noise_scheduler_kwargs)
             ),
-        ).to(device)
+        ).to(device, dtype=torch.float16)
+
+        video_length = flow_samples.shape[0]
+
+        animate_pipeline.load_ip_adapter(scale=ipa_scale)
+        ipa_image = rearrange(ipa_image, 'b h w c -> b c h w')
+        ipa_image = to_pil_image(ipa_image[0])
+        pos_image_embeds, neg_image_embeds = animate_pipeline.ip_adapter.get_image_embeds(ipa_image)
 
         # Run the animation pipeline
-        sample = animate_pipeline(
-            prompt=prompt,
-            first_frame=first_frame_tensor.squeeze(0),
-            flow_pre=flow_samples,
-            brush_mask=None,  # Optional, set if you have a brush mask
-            negative_prompt=negative_prompt,
-            num_inference_steps=num_inference_steps,
-            guidance_scale=guidance_scale,
-            width=width,
-            height=height,
-            video_length=flow_samples.shape[0],  # Number of frames
-        ).videos
+        with torch.cuda.amp.autocast(enabled=True, dtype=torch.float16):
+            sample = animate_pipeline(
+                prompt=prompt,
+                first_frame=first_frame_tensor.squeeze(0),
+                flow_pre=flow_samples,
+                brush_mask=None,  # Optional, set if you have a brush mask
+                negative_prompt=negative_prompt,
+                num_inference_steps=num_inference_steps,
+                guidance_scale=guidance_scale,
+                width=width,
+                height=height,
+                video_length=video_length,  # Number of frames
+                pos_image_embeds=pos_image_embeds,
+                neg_image_embeds=neg_image_embeds,
+                image_embed_frames=[0]
+            ).videos
         print(f"sample {sample.shape} w {width} h {height}")
         
         # Process the output images
         sample = rearrange(sample, 'b c f h w -> (b f) h w c')
 
-        if not keep_model_loaded:
-            animate_pipeline.to(offload_device)
-            model_management.soft_empty_cache()
+        animate_pipeline.to(offload_device)
+        model_management.soft_empty_cache()
 
         return (sample.to(intermediate_device),)
