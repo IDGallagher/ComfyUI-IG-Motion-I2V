@@ -3,6 +3,9 @@
 
 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) implementation of [Motion-I2V](https://xiaoyushi97.github.io/Motion-I2V/)
 This is currently a diffusers wrapper with code adapted from [https://github.com/G-U-N/Motion-I2V](https://github.com/G-U-N/Motion-I2V)
+
+Find me on [Twitter](https://x.com/idgallagher) or [Banodoco](https://discord.gg/hw5qQJ4AM8)
+
 ## Updates
 - [2024/9/24] 🔥 First Release
 - [2024/9/23] 🔥 Interactive Motion Painter UI for ComfyUI
