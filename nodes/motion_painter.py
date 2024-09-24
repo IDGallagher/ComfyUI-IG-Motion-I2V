@@ -242,9 +242,6 @@ class MI2V_MotionPainter(object):
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID"
-            },
-            "optional": {
-                "pause_execution": ("BOOLEAN", {"default": False}),
             }
         }
 
@@ -258,7 +255,7 @@ class MI2V_MotionPainter(object):
         print(f"SETTING {name} = {value}")
         super().__setattr__(name, value)
 
-    def execute(self, image, arrows, unique_id, pause_execution):
+    def execute(self, image, arrows, unique_id):
         # Piping image input
         if unique_id not in PAINTER_DICT:
             PAINTER_DICT[unique_id] = self
@@ -283,7 +280,7 @@ class MI2V_MotionPainter(object):
                 print(f"MotionPainter_{unique_id}: Image received, canvas changed!")
         # end - Piping image input
         # The actual processing will be handled on the client side.
-        return (image if not pause_execution else ExecutionBlocker(None), arrows if not pause_execution else ExecutionBlocker(None))
+        return (image, arrows)
 
     # @classmethod
     # def IS_CHANGED(self, image, arrows, unique_id, paupause_execution):
@@ -295,15 +292,15 @@ class MI2V_PauseNode:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
-                "mask": ("MASK",),
-            },
             "optional": {
+                "motion_vectors": ("STRING", {"default": "", "forceInput": True}),
+                "motion_mask": ("MASK", {"default": None, "forceInput": True}),
+                "images": ("IMAGE", {"default": None, "forceInput": True}),
                 "pause_execution": ("BOOLEAN", {"default": False}),
             },
         }
 
-    RETURN_TYPES = ("MASK",)  # Outputs the same data type as input
+    RETURN_TYPES = ("MASK", "IMAGE", "STRING")  # Outputs the same data type as input
     FUNCTION = "execute"
     CATEGORY = TREE_FLOW
 
@@ -313,7 +310,7 @@ class MI2V_PauseNode:
     When `pause_execution` is `True`, the pipeline stops and awaits further instructions.
     """
 
-    def execute(self, mask, pause_execution):
+    def execute(self, motion_vectors="", motion_mask=None, images=None, pause_execution=False):
         """
         Executes the Pause Node logic.
 
@@ -325,7 +322,7 @@ class MI2V_PauseNode:
             tuple: Outputs the data or an ExecutionBlocker.
         """
         if pause_execution:
-            return (ExecutionBlocker(None), )
+            return (ExecutionBlocker(None), ExecutionBlocker(None), ExecutionBlocker(None), )
         else:
             # Pass the data through unchanged
-            return (mask, )
+            return (motion_mask, images, motion_vectors,)

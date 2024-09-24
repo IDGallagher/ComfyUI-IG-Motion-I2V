@@ -60,35 +60,38 @@ def interpolate_trajectory(points, n_points):
 
     return new_points
 
-class MI2V_FlowModelLoader:
+class MI2V_FlowPredictor:
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {            
-            "model": (
-            ['Motion-I2V',], 
-            {
-                "default": 'Motion-I2V'
-            }),
+        return {
+            "required": {
+                # "flow_model": ("FLOWMODEL",),
+                # "frames": ("INT", {"default": 16}),
+                "flow_unit_id": ("INT", {"default": 5}),
+                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "prompt": ("STRING", {"multiline": True}),
+                "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
+                "first_frame": ("IMAGE",),
+                "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
+                "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
             },
-            }
-    
-    RETURN_TYPES = ("FLOWMODEL",)
-    RETURN_NAMES =("flow_model",)
-    FUNCTION = "load"
+            "optional": {
+                "motion_vectors": ("STRING", {"default": "", "forceInput": True}),
+                "motion_mask": ("MASK", {"default": None, "forceInput": True}),
+                }
+        }
+
+    RETURN_TYPES = ("FLOW","IMAGE",)
+    RETURN_NAMES = ("flow","preview",)
+    FUNCTION = "run"
     CATEGORY = TREE_FLOW
 
-    DESCRIPTION = """
-    Diffusion-based flow estimation used for Motion-I2V:
-    https://github.com/G-U-N/Motion-I2V
-    
-    Models are automatically downloaded to  
-    ComfyUI/models/diffusers -folder
-    """
     @torch.inference_mode()
-    def load(self, model):
+    def run(self, flow_unit_id, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, motion_vectors="", motion_mask=None, keep_model_loaded=False):
+
         torch.backends.cuda.matmul.allow_tf32 = True
         diffusers_model_path = os.path.join(folder_paths.models_dir, "diffusers")
-        checkpoint_path = os.path.join(diffusers_model_path, model)
+        checkpoint_path = os.path.join(diffusers_model_path, 'Motion-I2V')
         config_path = os.path.join(os.path.dirname(__file__), "..","configs")
 
         device = model_management.get_torch_device()
@@ -150,7 +153,7 @@ class MI2V_FlowModelLoader:
         
         print("finish loading")
        
-        self.flow_pipeline = FlowGenPipeline(
+        flow_pipeline = FlowGenPipeline(
             vae_img=vae_img,
             vae_flow=vae,
             text_encoder=text_encoder,
@@ -161,41 +164,8 @@ class MI2V_FlowModelLoader:
             ),
         ).to(device=device, dtype=torch.float16)
 
-        flow_model = {
-            "flow_pipeline": self.flow_pipeline,
-        }
-        return (flow_model,)
-
-class MI2V_FlowPredictor:
-    @classmethod
-    def INPUT_TYPES(s):
-        return {
-            "required": {
-                "flow_model": ("FLOWMODEL",),
-                "flow_unit_id": ("INT", {"default": 5}),
-                "seed": ("INT", {"default": 123,"min": 0, "max": 0xffffffffffffffff, "step": 1}),
-                "prompt": ("STRING", {"multiline": True}),
-                "negative_prompt": ("STRING", {"multiline": True, "default": "(blur, haze, deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"}),
-                "first_frame": ("IMAGE",),
-                "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
-                "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
-            },
-            "optional": {
-                "motion_vectors": ("STRING", {"default": "", "forceInput": True}),
-                "motion_mask": ("MASK", {"default": None, "forceInput": True}),
-                "keep_model_loaded": ("BOOLEAN", {"default": False}),
-                }
-        }
-
-    RETURN_TYPES = ("FLOW","IMAGE",)
-    RETURN_NAMES = ("flow","preview",)
-    FUNCTION = "run"
-    CATEGORY = TREE_FLOW
-
-    @torch.inference_mode()
-    def run(self, flow_model, flow_unit_id, seed, prompt, negative_prompt, first_frame, num_inference_steps, guidance_scale, motion_vectors="", motion_mask=None, keep_model_loaded=False):
-        flow_pipeline = flow_model['flow_pipeline']
-
+        # flow_pipeline = flow_model['flow_pipeline']
+        frames = 16
         device = model_management.get_torch_device()
         offload_device = model_management.unet_offload_device()
         intermediate_device = model_management.intermediate_device()
@@ -203,7 +173,8 @@ class MI2V_FlowPredictor:
 
         # The first_frame is already a tensor with batch dimension in ComfyUI
         first_frame_tensor = first_frame.to(device, dtype=torch.float16)
-        stride = list(range(8, 121, 8))
+        # stride = list(range(8, 121, 8))
+        stride = list(range(8, 8 * frames, 8))
 
         # Confirm the tensor shape
         print(f"Input tensor shape before permute: {first_frame_tensor.shape}")
@@ -259,7 +230,7 @@ class MI2V_FlowPredictor:
 
         print(f"brush mask 2 {brush_mask.shape}")
 
-        model_length = 16  # Set according to your model's requirements
+        model_length = frames  # Set according to your model's requirements
         input_drag = torch.zeros(model_length - 1, height, width, 2, device=device, dtype=torch.float16)
         mask_drag = torch.zeros(model_length - 1, height, width, 1, device=device, dtype=torch.float16)
         brush_mask = brush_mask.expand_as(mask_drag)
@@ -395,9 +366,8 @@ class MI2V_FlowPredictor:
         )
         print(f"Flow tensor shape: {flow_tensor.shape}")
 
-        if not keep_model_loaded:
-            flow_pipeline.to(offload_device)
-            model_management.soft_empty_cache()
+        flow_pipeline.to(offload_device)
+        model_management.soft_empty_cache()
         # Extract the generated frames
         # videos_tensor = output['videos'][0]  # Assuming batch_size = 1
 
@@ -436,9 +406,6 @@ class MI2V_FlowAnimator:
                 "ipa_scale": ("FLOAT", {"default": 1.0}),
                 "num_inference_steps": ("INT", {"default": 25, "min": 1, "max": 150}),
                 "guidance_scale": ("FLOAT", {"default": 7, "min": 0.1, "max": 20}),
-            },
-            "optional": {
-                "keep_model_loaded": ("BOOLEAN", {"default": False}),
             }
         }
 
@@ -568,8 +535,7 @@ class MI2V_FlowAnimator:
         # Process the output images
         sample = rearrange(sample, 'b c f h w -> (b f) h w c')
 
-        if not keep_model_loaded:
-            animate_pipeline.to(offload_device)
-            model_management.soft_empty_cache()
+        animate_pipeline.to(offload_device)
+        model_management.soft_empty_cache()
 
         return (sample.to(intermediate_device),)

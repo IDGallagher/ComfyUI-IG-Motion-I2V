@@ -739,7 +739,6 @@ class AnimationPipeline(DiffusionPipeline):
                 # Get the text and image embeds for this context
                 context = list(range(video_length))
                 cur_prompt = get_frame_embeds(context, video_length)
-                print(f"Latents dtype {latents_dtype}")
                 # predict the noise residual
                 noise_pred = self.unet(
                     latent_model_input.to(dtype=torch.float16),
