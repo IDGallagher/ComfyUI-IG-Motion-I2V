@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-ig-motion-i2v"
 description = "ComfyUI adaptation of https://github.com/G-U-N/Motion-I2V"
-version = "0.5.0"
+version = "0.6.0"
 license = { file = "LICENSE" }
 dependencies = []
 
