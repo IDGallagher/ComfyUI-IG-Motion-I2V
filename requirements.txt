@@ -1,0 +1,2 @@
+diffusers=>0.30.0
+cupy-cuda12x>=13.2.0
